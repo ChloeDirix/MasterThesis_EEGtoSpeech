@@ -1,0 +1,11 @@
+{
+  "enabledCssSnippets": [
+    "compact-timeline",
+    "dashboard-cards"
+  ],
+  "cssTheme": "Minimal",
+  "theme": "moonstone",
+  "accentColor": "#d8b0bd",
+  "textFontFamily": "",
+  "baseFontSizeAction": false
+}

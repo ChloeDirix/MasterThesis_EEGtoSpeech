@@ -1,0 +1,52 @@
+{
+	"nodes":[
+		{
+			"id":"4ddaa361855caa2d",
+			"type":"text",
+			"text":"### Project Overview\n\n**Title:** Decoding selective auditory attention from EEG to speech using contrastive learning with transformers\n**Supervisor:** Simon Geirnaert, Thomas Strypsteen\n",
+			"styleAttributes":{
+				"shape":null,
+				"border":"dotted"
+			},
+			"x":-580,
+			"y":-557,
+			"width":651,
+			"height":157
+		},
+		{
+			"id":"80c20987c67e5724",
+			"type":"text",
+			"text":"### **Thesis Planner**",
+			"styleAttributes":{
+				"shape":null,
+				"border":null,
+				"textAlign":null
+			},
+			"x":-580,
+			"y":-640,
+			"width":1059,
+			"height":60,
+			"color":"#edfe6c"
+		},
+		{"id":"1fa439601b561963","type":"text","text":"### Deadlines\n\n| What?                     | When                  | Status |\n| ------------------------- | --------------------- | ------ |\n| intermediate presentation | 15-18 dec 25          | ☐      |\n| submit final thesis title | 21 May 26             | ☐      |\n| submit thesis             | start 2nd exam period | ☐      |\n| fianl presentation        | 22-26 june 26         | ☐      |\n\n","x":-580,"y":-383,"width":340,"height":383,"color":"1"},
+		{"id":"5dd04a88106c4960","type":"text","text":"### Next meeting\nNextMeeting: `=date(2025-10-08)`\n\nDays left: `= date(2025-10-08) - date(today)`\n\n\n","x":-218,"y":-383,"width":289,"height":163,"color":"#a67777"},
+		{"id":"025a210de837798d","type":"file","file":"ObsidianMasterThesis/Images/quote.png","x":-218,"y":-191,"width":288,"height":192},
+		{"id":"ecb79105f32fd2f8","type":"text","text":"### To do\n\n- [x] plan deadlines courses + next week\n- [ ] read papers\n- [x] find and download dataset ✅ 2025-10-02\n- [ ] think further about steps in planning\n- [ ] start coding\n\n**tasks**\n- [ ] understand regularization\n- [ ] understand evaluation methods\n- [ ] look at code\n\n```tasks\n\ntag includes #thesis \n```\n\n\n","x":100,"y":-557,"width":379,"height":557,"color":"5"},
+		{
+			"id":"5769a39596418bcf",
+			"type":"text",
+			"text":"https://www.canva.com/design/DAG0jCUAvp8/_TAzQAHXhl2cem3JRexpAg/edit\n",
+			"styleAttributes":{},
+			"x":-580,
+			"y":20,
+			"width":1059,
+			"height":80
+		}
+	],
+	"edges":[],
+	"metadata":{
+		"version":"1.0-1.0",
+		"frontmatter":{},
+		"startNode":"a44f980dc2c9c3ca"
+	}
+}

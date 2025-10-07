@@ -1,0 +1,11 @@
+/* Shrink text size in Timeline plugin */
+.timeline {
+  font-size: 10px;   /* default is ~14-16px */
+  line-height: 0.81;  /* tighter spacing */
+}
+
+/* Optional: shrink timeline cards */
+.timeline-card {
+  padding: 6px 10px;
+  max-width: 300px;
+}
