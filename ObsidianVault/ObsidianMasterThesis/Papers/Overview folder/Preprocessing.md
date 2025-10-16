@@ -10,7 +10,7 @@
 	    *Recommended:* 
 		    - cuttoff <1 Hz (usually 0.5 Hz)
 		    - zero-phase shift filters? but not causality is a problem?
-	    
+
 2) **LP filter:**
 		**Goal**: remove any unwanted high frequency noise that may be present, for example, due to muscle contractions or environmental interference such as 50/60-Hz line noise 	--> improve model performance
 	.	
@@ -19,9 +19,8 @@
 	.
 		*Recommended*: 
 			- zero-phase filters
-			- range \[2, 40] Hz
+			- recommenced \[20,40]
 			
-	
 3) **Band-pass filter** 
 		Often in linear studies: 2-9 Hz or 1-8 Hz (delta–theta band)
 	    --> It has been shown that speech envelope and EEG recordings correlate best within the δ and θ band frequencies. 
@@ -37,12 +36,16 @@
 6) **Artifact removal** 
 		ICA= independent component analysis
 		MWF= multichannel wiener filtering
+	<font color="#d99694">mee opletten dat er geen info verdwijnt</font>
     
 7) **Remove first 500-1000 ms of data**
 		Avoid fitting the model to the neural response elicited by the onset of stimulation, as this is often a higher magnitude response
 		
+<font color="#d99694">nee, want dan zijn er nog veel andere dingen (maar paar seconden over uren!)</font>
+		
 8) optional: **Normalizing**: important when using subject-independent techniques. all data within the same subject should be normalized together, not separately
-		--> only if completely necessary
+
+<font color="#d99694">only if completely necessary, rereference belangrijker en eventueel als het nodig is</font>
 
 *extra step*: more specific features from EEG, such as a latent representation optimized through the training of an AE (Bollens et al 2022), or source-spatial feature images (SSFIs) (Tian and Ma 2020)
 

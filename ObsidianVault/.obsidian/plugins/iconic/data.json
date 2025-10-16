@@ -1,0 +1,79 @@
+{
+  "biggerIcons": "mobile",
+  "clickableIcons": "desktop",
+  "showAllFileIcons": false,
+  "showAllFolderIcons": false,
+  "minimalFolderIcons": true,
+  "showMarkdownTabIcons": true,
+  "showTitleIcons": true,
+  "showTagPillIcons": true,
+  "showMenuActions": true,
+  "showSuggestionIcons": true,
+  "showQuickSwitcherIcons": true,
+  "showMoveFileIcons": true,
+  "showItemName": "desktop",
+  "biggerSearchResults": "mobile",
+  "maxSearchResults": 50,
+  "colorPicker1": "list",
+  "colorPicker2": "rgb",
+  "uncolorHover": false,
+  "uncolorDrag": false,
+  "uncolorSelect": false,
+  "uncolorQuick": false,
+  "rememberDeletedItems": false,
+  "dialogState": {
+    "iconMode": true,
+    "emojiMode": false,
+    "rulePage": "folder"
+  },
+  "appIcons": {
+    "sidebarLeft": {
+      "color": "red"
+    },
+    "sidebarRight": {
+      "color": "red"
+    }
+  },
+  "tabIcons": {},
+  "fileIcons": {
+    "/": {
+      "color": "pink",
+      "unsynced": [
+        "d2ca4e39d1c867ef"
+      ]
+    }
+  },
+  "bookmarkIcons": {},
+  "tagIcons": {},
+  "propertyIcons": {},
+  "ribbonIcons": {
+    "daily-notes:Open today's daily note": {
+      "color": "cyan"
+    },
+    "homepage:Open homepage": {
+      "color": "cyan"
+    },
+    "obsidian-git:Open Git source control": {
+      "color": "cyan"
+    },
+    "omnisearch:Omnisearch": {
+      "color": "cyan"
+    }
+  },
+  "fileRules": [],
+  "folderRules": [
+    {
+      "id": "ueiar",
+      "name": "blub",
+      "match": "none",
+      "conditions": [
+        {
+          "source": "color",
+          "operator": "colorIs",
+          "value": "cyan"
+        }
+      ],
+      "enabled": true
+    }
+  ]
+}

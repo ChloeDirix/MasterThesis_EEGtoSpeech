@@ -5,19 +5,15 @@ from scipy.signal import butter, filtfilt   #design + apply a zero-phase Butterw
 from scipy.io import loadmat                #read matlab files into python objects
 
 
-# -----------------------------
-# filepaths
-# -----------------------------
-base_dir = r"C:\Users\lilou\Onedrive\Documenten\thesis"
+# -----------------------------------------------------------
+# Configuration
+base_dir = r"C:\Users\lilou\Onedrive\Documenten"
 eeg_dir = os.path.join(base_dir, "4004271")
 subject_file = os.path.join(eeg_dir, "S1.mat")
 
 
 
-# -----------------------------
 # Load MATLAB file
-# -----------------------------
-
 #read .mat file into a pyhton dict
 ## ---- squeeze_me: compresses singleton dimensions
 ## ---- struct_as_record: makes dict records
@@ -36,17 +32,9 @@ except KeyError:
             print(k)
             break
 
-#print(f"Data type: {type(data)}")
 
-print("trials",dir(data))
-print("trial1",data[0])
-print(data[:])
-
-
-
-# -----------------------------
+# ---------------------------------------------------------------
 # Helper functions
-# -----------------------------
 
 #zero-phase Butterworth band-pass filter
 def bandpass_filter(eeg, fs, low=1, high=9, order=4):
@@ -67,15 +55,16 @@ def zscore_normalize(eeg):
     """Z-score normalization per channel."""
     return (eeg - np.mean(eeg, axis=0)) / np.std(eeg, axis=0)
 
-"""
-# -----------------------------
-# Example: process first trial
-# -----------------------------
-# The structure might be something like subject['data'][0].RawData.EegData
-trial = data[0] if isinstance(data, (list, np.ndarray)) else data
-print(trial.RawData.EegData.T)
+
+# -------------------------------------------------------------
+# First Try
+
+# The structure = subject['data'][0].RawData.EegData
+trial = data[0]
+    #if isinstance(data, (list, np.ndarray)) else data
 eeg = trial.RawData.EegData.T  # transpose to shape (samples, channels)
 fs = trial.FileHeader.SampleRate
+
 print(f"EEG shape: {eeg.shape}, fs: {fs}")
 
 # 1. Re-reference
@@ -95,12 +84,10 @@ eeg = zscore_normalize(eeg)
 
 print(f"Preprocessed EEG shape: {eeg.shape}, final fs: {fs} Hz")
 
-# -----------------------------
-# Save or continue with speech alignment
-# -----------------------------
+
+# Save
 out_dir = os.path.join(base_dir, "preprocessed")
 os.makedirs(out_dir, exist_ok=True)
 np.save(os.path.join(out_dir, "S1_trial1_eeg.npy"), eeg)
 
-print("✅ Preprocessing complete. Saved preprocessed EEG for first trial.")
-"""
+print("Preprocessing complete. Saved preprocessed EEG for first trial.")

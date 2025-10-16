@@ -3,8 +3,10 @@
 Understanding neural mechanisms of auditory processing by decoding of continuous speech from electroencephalography (EEG) is needed for applications in hearing diagnostics
 
 ## EEG? 
-- + high temporal resolution
+- + **Noninvasive** and **macroscopic** brain recording method
+- + high temporal resolution: ideal for studying _time-varying neural responses_ to _continuous, natural stimuli_ (e.g., speech
 - + ease of use
+- - Main challenge: how to model and analyze such complex, time-dependent brain responses.
 
 ==applications:== 
 - auditory neuroscience research
