@@ -8,7 +8,7 @@
 it's showed that a (subject-dependent) CNN using a classification approach can outperform linear methods for decision windows of 10 s, but the performance drastically drops when using shorter windows
 
 ##### **Architecture**
-![[image.png]]
+![[image 1.png]]
 - Input: matrix of size **64 × T** (64 channels, T time samples)
 - First convolutional layer: _spatio-temporal filters_ of size 64 × 17 (i.e. across all channels, 17-time-sample window) → yields 5 time series (i.e. 5 filters) over T
 - Activation: ReLU
@@ -63,10 +63,10 @@ compare O'sullivan's TRF
     
 
 ##### linear model: 
-![[image-1.png]]
+![[image-1 1.png]]
 
 ##### DNN
-![[image-2.png]]
+![[image-2 1.png]]
     
     
 ##### CNN

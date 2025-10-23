@@ -7,5 +7,7 @@
   "theme": "moonstone",
   "accentColor": "#d8b0bd",
   "textFontFamily": "",
-  "baseFontSizeAction": false
+  "baseFontSizeAction": false,
+  "showViewHeader": true,
+  "showRibbon": true
 }

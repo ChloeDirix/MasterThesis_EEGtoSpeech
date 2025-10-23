@@ -36,7 +36,7 @@ AttentionScore= Q.K^T
 $$
 2. Scores are scaled (so values don't blow up) and passed through a [[Softmax]] so they scale to 1 and the values are scaled
 $$
-Att(Q,K,V)= Softmax(\frac{Q.K^T}{\sqrt k})*V
+Att(Q,K,V)= Softmax(\frac{Q.K^T}{\sqrt d_k})*V
 $$
 3. The weighted sum of all V's gives the new representation
 $$

@@ -1,55 +1,75 @@
-###### Sources:
-*Linear Modeling of Neurophysiological Responses to Speech and Other Continuous Stimuli: Methodological Considerations for Applied Research - Crosse et al
+# <font color="#205867">Preprocessing</font>
 
-*Relating EEG to continuous speech using deep neural networks: a review - Puffay et al*
+## <font color="#974806">Combine dataset</font>
+### **Possible challenges**
+![[image-7.png]]
+![[image-9.png]]
 
-###### EEG
-1) **High-pass filter**: 
-	    **goal**: remove unwanted DC shifts or slow drift potentials caused by electrode junction potentials (eg sweat)
-	    .
-	    *Recommended:* 
-		    - cuttoff <1 Hz (usually 0.5 Hz)
-		    - zero-phase shift filters? but not causality is a problem?
+### **Extra: might be useful/needed?**
 
-2) **LP filter:**
-		**Goal**: remove any unwanted high frequency noise that may be present, for example, due to muscle contractions or environmental interference such as 50/60-Hz line noise 	--> improve model performance
-	.	
-		**remark**:  - if high frequency needed: notch filter or zapline
-				- non linear studies can benefit from using higher frequencies
-	.
-		*Recommended*: 
-			- zero-phase filters
-			- recommenced \[20,40]
-			
-3) **Band-pass filter** 
-		Often in linear studies: 2-9 Hz or 1-8 Hz (delta–theta band)
-	    --> It has been shown that speech envelope and EEG recordings correlate best within the δ and θ band frequencies. 
-	     
-4) **Re-reference** to average or mastoids.
-	    - To 1 channel (mastoid): enhance neural activity in a region of interest
-	    - To mean of all channels: by subtracting the mean over all channels from each individual channel --> increase SNR
-		
-5) **Downsampling**
-		**Range**: ~64–128 Hz
-		**Goal**: reduce computational time during training. Often combined with anti-aliasing filter or a simple LP filter (below Nyquist frequency)
+- **Adapters** = extra module between input and model, that handles specific dataset differences. 
+- **Track dataset ID** as metadata for each sample. Makes data splits easier
+- **DANN?**: feature based adaptation method that learns a domain-invariant representation through adversarial training.
+
+<font color="#9bbb59">--> DANN and adapters might go too far, also no idea if implementable in this specific case??</font>
+
+---
+
+## <font color="#974806">EEG preprocessing</font>
+<span style="background:rgba(163, 67, 31, 0.2)">minimize hand-crafted steps to let the model learn more</span>
+### **1. Band-Pass**
+**Goal**: capture speech envelope frequencies.
+**HP filter:** remove unwanted DC shifts or slow drift potentials caused by electrode junction potentials (eg sweat)
+**LP filter**: remove any unwanted high frequency noise that may be present, for example, due to muscle contractions or environmental interference such as 50/60-Hz line noise
+
+<font color="#9bbb59">Standard: 1-32 Hz</font>
+- Delta (1–4 Hz)
+- theta (4–8 Hz) 
+- Low beta (up to ~32 Hz) for possible higher-level attentional effects.
+	
+### **2. Downsampling**
+**Goal**: reduce computational time during training + needs to match speech envelope. Often combined with anti-aliasing filter or a simple LP filter (below Nyquist frequency)		
+
+<font color="#9bbb59">Standard:  to 125 Hz</font>
+
+### **3. Normalizing and re-referencing**
+**Z-score per channel:** All data within the same subject should be normalized together, not separately
+
+**Re-reference to average or mastoids**
+- To 1 channel (mastoid): enhance neural activity in a region of interest
+- To mean of all channels: by subtracting the mean over all channels from each individual channel
+
+--> <font color="#9bbb59">Since working with multiple datasets, all datasets re-referenced to average reference.</font>
+
+### **(4. Artifact removal)**
+ICA= independent component analysis
+MWF= multichannel wiener filtering
+	<font color="#d99694">Be careful as this can make info dissapear</font>
     
-6) **Artifact removal** 
-		ICA= independent component analysis
-		MWF= multichannel wiener filtering
-	<font color="#d99694">mee opletten dat er geen info verdwijnt</font>
+----
+
+## <font color="#974806">Audio Preprocessing</font>
+<span style="background:rgba(163, 67, 31, 0.2)">Audio envelope extraction: using compressed subband envelopes, resembling the processing of speech signals in the human auditory system. Makes it more interpretable and better aligned with envelope-following responses (EFRs) in EEG.</span>
+
+### **1. Gammatone filterbank**
+audio is split into many narrow “frequency channels,” each representing a small part of the speech spectrum.
+simulates cochlear processing: like different hair cells in the inner ear
+
+Equivalent rectangular bandwidth (ERB) =<font color="#9bbb59"> 1.5 Hz</font>
+frequency band: <font color="#9bbb59">150 Hz-4 kHz</font>
+
+### **2. Hilbert transform**
+amplitude envelope extraction per subband
+
+### **3. nonlinear compression**
+This reflects loudness perception, humans perceive intensity nonlinearly 
+
+e<sub>compressed</sub>​(t)=\[e<sub>raw</sub>​(t)]<sup>0.6</sup>
+
+### **4. Filtering and resampling**
+- **low-pass filter** at 50 Hz: EEG cannot track faster modulations
+- **Downsample** to 125 Hz
+
+
+
     
-7) **Remove first 500-1000 ms of data**
-		Avoid fitting the model to the neural response elicited by the onset of stimulation, as this is often a higher magnitude response
-		
-<font color="#d99694">nee, want dan zijn er nog veel andere dingen (maar paar seconden over uren!)</font>
-		
-8) optional: **Normalizing**: important when using subject-independent techniques. all data within the same subject should be normalized together, not separately
-
-<font color="#d99694">only if completely necessary, rereference belangrijker en eventueel als het nodig is</font>
-
-*extra step*: more specific features from EEG, such as a latent representation optimized through the training of an AE (Bollens et al 2022), or source-spatial feature images (SSFIs) (Tian and Ma 2020)
-
-###### Speech
-1) **Speech envelope** extraction (Hilbert or gammatone) or mel spectrogram,...
-    
-2) **Align EEG and envelope**

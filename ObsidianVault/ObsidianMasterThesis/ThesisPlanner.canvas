@@ -31,7 +31,7 @@
 		{"id":"1fa439601b561963","type":"text","text":"### Deadlines\n\n| What?                     | When                  | Status |\n| ------------------------- | --------------------- | ------ |\n| intermediate presentation | 15-18 dec 25          | ☐      |\n| submit final thesis title | 21 May 26             | ☐      |\n| submit thesis             | start 2nd exam period | ☐      |\n| fianl presentation        | 22-26 june 26         | ☐      |\n\n","x":-580,"y":-383,"width":340,"height":383,"color":"1"},
 		{"id":"5dd04a88106c4960","type":"text","text":"### Next meeting\nNextMeeting: `=date(2025-10-22)`\n\nDays left: `= date(2025-10-22) - date(today)`\n\n\n","x":-218,"y":-383,"width":289,"height":163,"color":"#a67777"},
 		{"id":"025a210de837798d","type":"file","file":"ObsidianMasterThesis/Images/quote.png","x":-218,"y":-191,"width":288,"height":192},
-		{"id":"ecb79105f32fd2f8","type":"text","text":"### To do\n\n- [ ] read papers\n- [x] get code right\n- [ ] make a plan\n\n**tasks**\n- [ ] understand regularization\n- [ ] understand evaluation methods\n- [ ] look at code\n\n```tasks\n\ntag includes #thesis \n```\n\n\n","x":100,"y":-557,"width":379,"height":557,"color":"5"},
+		{"id":"ecb79105f32fd2f8","type":"text","text":"### To do\n\n- [ ] read papers\n- [ ] make a plan\n\n**tasks**\n\n```tasks\n\ntag includes #thesis \n```\n\n\n","x":100,"y":-557,"width":379,"height":557,"color":"5"},
 		{
 			"id":"5769a39596418bcf",
 			"type":"text",
