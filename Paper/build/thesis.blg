@@ -18,10 +18,12 @@ A level-1 auxiliary file: text/appendix-n.aux
 Reallocating 'name_of_file' (item size: 1) to 6 items.
 The style file: abbrv.bst
 Reallocating 'name_of_file' (item size: 1) to 20 items.
+Reallocating 'name_of_file' (item size: 1) to 13 items.
+A level-1 auxiliary file: text/CoC.aux
 Database file #1: text/references.bib
 You've used 3 entries,
             2118 wiz_defined-function locations,
-            520 strings with 4246 characters,
+            521 strings with 4258 characters,
 and the built_in function-call counts, 710 in all, are:
 = -- 64
 > -- 27

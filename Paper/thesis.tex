@@ -17,7 +17,15 @@
 % This can be commented out for printed versions.
 \usepackage[pdfusetitle,colorlinks,plainpages=false]{hyperref}
 
-%%%%%%%
+\usepackage[table]{xcolor} % 'table'optie is handig voor cell backgrounds
+\usepackage{xltabular}    % combinatie van longtable + tabularx
+\usepackage[table]{xcolor}
+\usepackage{enumitem}
+\usepackage{xltabular,enumitem} 
+\usepackage[table]{xcolor} 
+\usepackage{pdflscape}
+
+
 % The lipsum package is used to generate random text.
 % You never need this in a real master's thesis text!
 \IfFileExists{lipsum.sty}%
@@ -25,21 +33,21 @@
  {\newcommand{\lipsum}[1][11-13]{\par And some text: lipsum ##1.\par}}
 %%%%%%%
 
+%%%%%%%
 %\includeonly{chapter-n}
 \begin{document}
 
 \begin{preface}
-  I would like to thank everybody who kept me busy the last year,
-  especially my promoter and my assistants. I would also like to thank the
-  jury for reading the text. My sincere gratitude also goes to my wive and
-  the rest of my family.
+This is my acknowledgment to thank everyone who has kept me busy.
+I would like to thank my supervisor, my advisor, and the entire jury.
+My family has also been very supportive, of course.
 \end{preface}
 
 \tableofcontents*
 
 \begin{abstract}
-  The \texttt{abstract} environment contains a more extensive overview of
-  the work. But it should be limited to one page.
+  This \texttt{abstract} environment provides a summary of the work, which may or may not be extensive.
+  The intention is that this should be limited to 1 page.
 
   \lipsum[1]
 \end{abstract}
@@ -47,12 +55,13 @@
 % A list of figures and tables is optional
 %\listoffigures
 %\listoftables
-% If you only have a few figures and tables you can use the following instead
+% If there are only a few figures and tables, it is better to use the following:
 \listoffiguresandtables
 % The list of symbols is also optional.
-% This list must be created manually, e.g., as follows:
-\chapter{List of Abbreviations and Symbols}
-\section*{Abbreviations}
+% This list must be created manually, e.g. as follows:
+\chapter{List of abbreviations and symbols}
+\section*{abbreviations}
+
 \begin{flushleft}
   \renewcommand{\arraystretch}{1.1}
   \begin{tabularx}{\textwidth}{@{}p{12mm}X@{}}
@@ -61,12 +70,14 @@
     PSNR  & Peak Signal-to-Noise ratio \\
   \end{tabularx}
 \end{flushleft}
+
+
 \section*{Symbols}
 \begin{flushleft}
   \renewcommand{\arraystretch}{1.1}
   \begin{tabularx}{\textwidth}{@{}p{12mm}X@{}}
     42    & ``The Answer to the Ultimate Question of Life, the Universe,
-            and Everything'' according to \cite{h2g2} \\
+            and Everything'' volgens de \cite{h2g2} \\
     $c$   & Speed of light \\
     $E$   & Energy \\
     $m$   & Mass \\
@@ -90,11 +101,10 @@
 \include{text/appendix-1}
 % ... and so on until
 \include{text/appendix-n}
-
 \backmatter
 % The bibliography comes after the appendices.
 % You can replace the standard "abbrv" bibliography style by another one.
 \bibliographystyle{abbrv}
 \bibliography{text/references.bib}
-
+\include{text/CoC}
 \end{document}
