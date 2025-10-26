@@ -6,10 +6,12 @@ plot_steps: False
 plot_Envelope_Checks: False
 
 # Directory info
-base_dir: "C:/Users/lilou/OneDrive/Documenten"
-data_dir: "4004271"
-stim_dir: "stimuli"
-#subject_file = os.path.join(data_dir, "S1.mat")
+base_dir: "C:/Users/lilou/OneDrive/Documenten/thesis"
+
+data_dir: "data/EEGData"
+stim_dir: "data/stimuli"
+PP_dir: "data/preprocessed"
+Env_dir: "data/envelopes"
 
 # Subjects to process
 subjects:
