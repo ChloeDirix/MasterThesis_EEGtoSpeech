@@ -30,6 +30,9 @@ class LoadSubject:
         self.LoadTrials(self.Rawtrials)
 
 
+
+
+
     def dataExploration(self):
         for i, t in enumerate(self.mat['trials'][:1], start=1):
             print(f"\nTRIAL {i}")
@@ -49,7 +52,7 @@ class LoadSubject:
             trialObject.fill_trial_metadata(RawTrial)
             self.trials.append(trialObject)
 
-    def getSubject(self):
+    def getSubject(self, subject_id):
          return self.mat
     def get_trial_count(self):
         return len(self.Rawtrials)
