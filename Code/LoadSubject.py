@@ -30,9 +30,6 @@ class LoadSubject:
         self.LoadTrials(self.Rawtrials)
 
 
-
-
-
     def dataExploration(self):
         for i, t in enumerate(self.mat['trials'][:1], start=1):
             print(f"\nTRIAL {i}")

@@ -4,21 +4,24 @@
     "type": "split",
     "children": [
       {
-        "id": "4509724f8bf84da7",
+        "id": "d8c38721263d065b",
         "type": "tabs",
         "children": [
           {
-            "id": "e7a7b303c61786dc",
+            "id": "340da9a334b5d9e8",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "canvas",
               "state": {
-                "file": "ObsidianMasterThesis/Papers/Overview folder/Preprocessing.md",
-                "mode": "source",
-                "source": false
+                "file": "ObsidianMasterThesis/ThesisPlanner.canvas",
+                "viewState": {
+                  "x": -50.5,
+                  "y": -270,
+                  "zoom": -0.6066744601622573
+                }
               },
-              "icon": "lucide-file",
-              "title": "Preprocessing"
+              "icon": "lucide-layout-dashboard",
+              "title": "ThesisPlanner"
             }
           }
         ]
@@ -78,8 +81,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 252.5,
-    "collapsed": true
+    "width": 252.5
   },
   "right": {
     "id": "7b59682932637985",
@@ -208,11 +210,16 @@
       "iconic:Open rulebook": false
     }
   },
-  "active": "e7a7b303c61786dc",
+  "active": "340da9a334b5d9e8",
   "lastOpenFiles": [
-    "ObsidianMasterThesis/Papers/Overview folder/Plan/Plan....md",
+    "image.png",
+    "ObsidianMasterThesis/Papers/Geirnaert/Subject intro.md",
+    "ObsidianMasterThesis/Papers/Overview folder/Notes Intro.md",
+    "ObsidianMasterThesis/Guidelines/paper layout and template.md",
+    "ObsidianMasterThesis/Guidelines/guidelines_thesis.pdf",
     "ObsidianMasterThesis/ThesisPlanner.canvas",
     "ObsidianMasterThesis/Papers/Overview folder/Preprocessing.md",
+    "ObsidianMasterThesis/Papers/Overview folder/Plan/Plan....md",
     "image-9.png",
     "ObsidianMasterThesis/Papers/Overview folder/Plan/Subject dependent or specific vs subject independent.md",
     "image-8.png",
@@ -223,7 +230,6 @@
     "image-3.png",
     "image-2.png",
     "image-1.png",
-    "image.png",
     "ObsidianMasterThesis/Papers/Overview folder/Plan/Goals.md",
     "Untitled.canvas",
     "Excalidraw/Drawing 2025-10-21 11.16.48.excalidraw.md",
@@ -243,17 +249,13 @@
     "ObsidianMasterThesis/Meeting 1 - 30_9.md",
     "ObsidianMasterThesis/Meeting 2 - 8_10.md",
     "ObsidianMasterThesis/Papers/Overview folder/research questions.md",
-    "ObsidianMasterThesis/Papers/Overview folder/Notes Intro.md",
     "ObsidianMasterThesis/Papers/Overview folder/Work document.md",
     "Untitled.base",
     "ObsidianMasterThesis/Papers/Geirnaert/Notes Geirnaert et al.--- EEG-based Auditory Attention Decoding.md",
-    "ObsidianMasterThesis/Papers/Geirnaert/Subject intro.md",
-    "ObsidianMasterThesis/Guidelines/paper layout and template.md",
     "Untitled 1.base",
     "Untitled 2.base",
     "ObsidianMasterThesis/Papers/Accou/Notes Accou - EEG with Natural Speech – Dataset Overview.md",
     "ObsidianMasterThesis/Images/presentation-introduction-chloe-300925.pdf",
-    "ObsidianMasterThesis/Guidelines/guidelines_thesis.pdf",
     "ObsidianMasterThesis/Papers/Overview folder",
     "ObsidianMasterThesis/Images/Images",
     "ObsidianMasterThesis/Papers/Sridhar",

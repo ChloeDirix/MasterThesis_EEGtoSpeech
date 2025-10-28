@@ -4,6 +4,9 @@ from scipy import stats
 import matplotlib.pyplot as plt
 import random
 
+from scipy.stats import binomtest
+
+
 def SummaryStats(r_att, r_unatt):
     r_att = np.array(r_att)
     r_unatt = np.array(r_unatt)
@@ -23,7 +26,7 @@ def SummaryStats(r_att, r_unatt):
     from statsmodels.stats.proportion import proportion_confint, binom_test
     n_correct = np.sum(r_att > r_unatt)
     n_total = len(r_att)
-    p_binom = binom_test(n_correct, n_total, p=0.5, alternative='greater')
+    p_binom = binomtest(n_correct, n_total, p=0.5, alternative='greater').pvalue
     print(f"Binomial test: {n_correct}/{n_total} correct, p = {p_binom:.3e}")
     return dict(mean_att=mean_att, mean_un=mean_un, acc=acc, t_p=pval, binom_p=p_binom)
 

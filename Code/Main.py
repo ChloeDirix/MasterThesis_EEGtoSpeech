@@ -1,3 +1,4 @@
+import numpy as np
 import yaml
 import Preprocessing as PP
 import EnvelopeExt as EE
@@ -26,10 +27,17 @@ for subject_id in cfg["subjects"]:
 
     results=run_mTRF(subject_id, Subject_data, cfg)
 
-    print(results)
-    r_att=results["corr_att"]
-    r_unatt=results["uncorr_att"]
+    if len(results) == 0:
+        print(f"No usable results for {subject_id}, skipping summary.\n")
+        continue
+
+        # Extract arrays
+    r_att = np.array([r["corr_att"] for r in results])
+    r_unatt = np.array([r["corr_unatt"] for r in results])
+
+    acc = np.mean([r["correct"] for r in results])
+    print(f"Subject {subject_id} — Decoding Accuracy = {acc:.2f}")
+
     stats = summaryStats.SummaryStats(r_att, r_unatt)
     summaryStats.plot_histograms(r_att, r_unatt)
-
 

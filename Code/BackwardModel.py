@@ -36,7 +36,6 @@ def train_backward_model(eeg, envelope, fs, lambda_val=1.0, lag_ms=(-100,400)):
 
     model = Ridge(alpha=lambda_val)
     model.fit(X_lagged, y)
-    print("blub")
     return model, lag_samp
 
 

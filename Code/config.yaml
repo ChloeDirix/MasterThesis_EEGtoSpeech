@@ -1,5 +1,5 @@
 # General configuration
-target_fs: 128
+target_fs: 64
 band: [1, 9]
 plot_seconds: 30
 plot_steps: False

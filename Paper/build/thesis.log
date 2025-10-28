@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex 2025.10.24)  24 OCT 2025 11:44
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex 2025.10.24)  28 OCT 2025 18:43
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -639,7 +639,7 @@ Package hyperref Info: Link coloring ON on input line 38.
 \@outlinefile=\write4
 \openout4 = `thesis.out'.
 
-<logokuleng-en.pdf, id=123, 216.81pt x 99.9735pt>
+<logokuleng-en.pdf, id=103, 216.81pt x 99.9735pt>
 File: logokuleng-en.pdf Graphic file (type pdf)
 <use logokuleng-en.pdf>
 Package pdftex.def Info: logokuleng-en.pdf  used on input line 38.
@@ -704,23 +704,23 @@ Chapter 1.
 
 
 ]
-
-[2]
 \openout2 = `text/chapter-1.aux'.
 
  (text/chapter-1.tex
+
+[2
+
+
+
+
+]
 Chapter 2.
-LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 18.
+LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 17.
 (C:\Users\lilou\AppData\Local\Programs\MiKTeX\tex/latex/lm\ts1lmr.fd
 File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
-)
+))
 
-[3
-
-
-
-
-{C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-ts1.enc}])
+[3{C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-ts1.enc}]
 
 [4]
 \openout2 = `text/chapter-2.aux'.
@@ -728,18 +728,27 @@ File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
  (text/chapter-2.tex
 Chapter 3.
 
+Underfull \hbox (badness 10000) in paragraph at lines 9--16
+
+ []
+
+
 Class memoir Warning: \fref is marked deprecated and will be
 (memoir)              removed from memoir in 2026.
 (memoir)              Define your own version in the preamble. E.g. via
 (memoir)              \newcommand\fref[1]{\figurename~\ref{#1}}
-(memoir)               on input line 21.
+(memoir)               on input line 22.
 
 File: logokuleng-en.pdf Graphic file (type pdf)
 <use logokuleng-en.pdf>
-Package pdftex.def Info: logokuleng-en.pdf  used on input line 25.
+Package pdftex.def Info: logokuleng-en.pdf  used on input line 26.
 (pdftex.def)             Requested size: 216.80946pt x 99.97324pt.
 
-Underfull \vbox (badness 2837) has occurred while \output is active []
+Class memoir Warning: \tref is marked deprecated and will be
+(memoir)              removed from memoir in 2026.
+(memoir)              Define your own version in the preamble. E.g. via
+(memoir)              \newcommand\tref[1]{\tablename~\ref{#1}}
+(memoir)               on input line 33.
 
 
 
@@ -748,52 +757,26 @@ Underfull \vbox (badness 2837) has occurred while \output is active []
 
 
 
-]
-
-Class memoir Warning: \tref is marked deprecated and will be
-(memoir)              removed from memoir in 2026.
-(memoir)              Define your own version in the preamble. E.g. via
-(memoir)              \newcommand\tref[1]{\tablename~\ref{#1}}
-(memoir)               on input line 32.
-
-LaTeX Font Info:    Trying to load font information for T1+lmss on input line 66.
-(C:\Users\lilou\AppData\Local\Programs\MiKTeX\tex/latex/lm\t1lmss.fd
-File: t1lmss.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
-)
+])
 
 [6]
-
-[7])
-
-[8]
-
-[9]
 \openout2 = `text/chapter-n.aux'.
 
  (text/chapter-n.tex
+Chapter 4.
+)
 
-[10
+[7
 
 
 
 
 ]
-Chapter 4.
-
-
-[11])
-Underfull \vbox (badness 4316) has occurred while \output is active []
-
-
-
-[12]
-
-[13]
 \openout2 = `text/conclusion.aux'.
 
  (text/conclusion.tex
 
-[14
+[8
 
 
 
@@ -801,54 +784,52 @@ Underfull \vbox (badness 4316) has occurred while \output is active []
 ]
 Chapter 5.
 )
-Underfull \vbox (badness 1308) has occurred while \output is active []
 
+[9]
 
-
-[15]
-
-[16]
-
-[17
+[10
 
 
 
 ]
 
-[18]
+[11]
+
+[12]
 \openout2 = `text/appendix-1.aux'.
 
  (text/appendix-1.tex
 Appendix A.
+)
+
+[13
 
 
-[19
-
-
-])
-
-[20]
+]
 \openout2 = `text/appendix-n.aux'.
 
  (text/appendix-n.tex
+
+[14
+
+
+
+
+]
 Appendix B.
+)
+
+[15]
+
+[16
 
 
-[21
 
-
-
-
-])
-
-[22] (c:\Users\lilou\OneDrive\Documenten\thesis\Paper\build\thesis.bbl
+] (c:\Users\lilou\OneDrive\Documenten\thesis\Paper\build\thesis.bbl
 bibitemlist
 )
 
-[23
-
-
-
+[17
 
 ]
 \openout2 = `text/CoC.aux'.
@@ -860,7 +841,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 4--8
 
 
 
-[24
+[18
 
 
 ]
@@ -870,9 +851,9 @@ Underfull \hbox (badness 10000) in paragraph at lines 35--39
 
 
 
-[25]
+[19]
 
-[26]
+[20]
 Overfull \hbox (17.0pt too wide) in paragraph at lines 57--58
 [][] 
  []
@@ -883,100 +864,90 @@ Overfull \hbox (17.0pt too wide) in paragraph at lines 65--66
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 79--80
+Underfull \hbox (badness 10000) in paragraph at lines 83--84
 
  []
 
 
 
-[27]
-Underfull \hbox (badness 1874) in paragraph at lines 100--100
+[21]
+Underfull \hbox (badness 1874) in paragraph at lines 107--107
 []|\T1/lmr/bx/n/10.95 Name of the
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 100--100
+Underfull \hbox (badness 10000) in paragraph at lines 107--107
 \T1/lmr/m/n/10.95 also de-scribe
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 100--100
+Underfull \hbox (badness 10000) in paragraph at lines 107--107
 \T1/lmr/m/n/10.95 in which way
  []
 
 
-Underfull \hbox (badness 1320) in paragraph at lines 100--100
+Underfull \hbox (badness 1320) in paragraph at lines 107--107
 \T1/lmr/m/n/10.95 you were us-ing
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 100--100
+Underfull \hbox (badness 10000) in paragraph at lines 107--107
 \T1/lmr/m/n/10.95 GenAI re-lated
  []
 
 
-Overfull \hbox (37.59998pt too wide) in alignment at lines 98--102
+Overfull \hbox (37.59998pt too wide) in alignment at lines 105--109
  [] [] [] 
  []
 
 
-Overfull \hbox (37.59998pt too wide) in alignment at lines 102--109
+Overfull \hbox (37.59998pt too wide) in alignment at lines 109--116
  [] [] [] 
  []
 
 
-Overfull \hbox (37.59998pt too wide) in alignment at lines 109--112
+Overfull \hbox (37.59998pt too wide) in alignment at lines 116--119
  [] [] [] 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 126--126
+Underfull \hbox (badness 10000) in paragraph at lines 133--133
 []|\T1/lmr/bx/n/10.95 For trans-la-tion
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 126--126
+Underfull \hbox (badness 10000) in paragraph at lines 133--133
 \T1/lmr/bx/n/10.95 aid to im-prove
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 126--126
+Underfull \hbox (badness 10000) in paragraph at lines 133--133
 \T1/lmr/bx/n/10.95 un-der-stand text
  []
 
 
-Underfull \hbox (badness 4467) in paragraph at lines 133--133
+Underfull \hbox (badness 4467) in paragraph at lines 140--140
 \T1/lmr/bx/n/10.95 re-search on the
  []
 
 
-Underfull \hbox (badness 1910) in paragraph at lines 137--138
+Underfull \hbox (badness 1910) in paragraph at lines 144--145
 \T1/lmr/m/n/10.95 be lim-ited due to the databases it
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 139--139
+Underfull \hbox (badness 10000) in paragraph at lines 146--146
 []|\T1/lmr/bx/n/10.95 For lit-er-a-ture
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 147--147
+Underfull \hbox (badness 10000) in paragraph at lines 154--154
 []|\T1/lmr/bx/n/10.95 For gen-er-at-ing
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 147--147
+Underfull \hbox (badness 10000) in paragraph at lines 154--154
 \T1/lmr/bx/n/10.95 pro-gram-ming
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 148--148
-[]|\T1/lmr/bx/n/10.95 For gen-er-at-ing
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 148--148
-\T1/lmr/bx/n/10.95 new (re-search)
  []
 
 
@@ -985,43 +956,53 @@ Underfull \hbox (badness 10000) in paragraph at lines 155--155
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 164--164
+Underfull \hbox (badness 10000) in paragraph at lines 155--155
+\T1/lmr/bx/n/10.95 new (re-search)
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 162--162
 []|\T1/lmr/bx/n/10.95 For gen-er-at-ing
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 164--164
+Underfull \hbox (badness 10000) in paragraph at lines 171--171
+[]|\T1/lmr/bx/n/10.95 For gen-er-at-ing
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 171--171
 \T1/lmr/bx/n/10.95 blocks of text
  []
 
 
-Underfull \hbox (badness 4013) in paragraph at lines 164--164
+Underfull \hbox (badness 4013) in paragraph at lines 171--171
 \T1/lmr/bx/n/10.95 (other than the
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 164--164
+Underfull \hbox (badness 10000) in paragraph at lines 171--171
 \T1/lmr/bx/n/10.95 out ref-er-enc-ing
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 181--181
+Underfull \hbox (badness 10000) in paragraph at lines 188--188
 \T1/lmr/bx/n/10.95 also in-clude a
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 181--181
+Underfull \hbox (badness 10000) in paragraph at lines 188--188
 \T1/lmr/bx/n/10.95 com-bi-na-tion of
  []
 
 
-Overfull \hbox (37.59998pt too wide) in alignment at lines 112--188
+Overfull \hbox (37.59998pt too wide) in alignment at lines 119--195
  [] [] [] 
  []
 
-[28] [29] [30] [31] [32])
+[22] [23] [24] [25] [26])
 
-[33]
+[27]
 \tf@toc=\write5
 \openout5 = `thesis.toc'.
 
@@ -1037,20 +1018,20 @@ LaTeX2e <2025-06-01> patch level 1
 L3 programming layer <2020/03/25>
  ***********
 Package rerunfilecheck Info: File `thesis.out' has not changed.
-(rerunfilecheck)             Checksum: 00012CDFC9384E2981531A02D85A176A;3933.
+(rerunfilecheck)             Checksum: 6562B5B74DE9A53AF65CA1DEA7DCF731;3340.
  ) 
 Here is how much of TeX's memory you used:
- 15807 strings out of 468081
- 266224 string characters out of 5425788
- 846955 words of memory out of 5000000
- 44095 multiletter control sequences out of 15000+600000
- 692544 words of font info for 72 fonts, out of 8000000 for 9000
+ 15730 strings out of 468081
+ 264701 string characters out of 5425788
+ 843407 words of memory out of 5000000
+ 44041 multiletter control sequences out of 15000+600000
+ 689774 words of font info for 71 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 98i,12n,107p,1526b,592s stack positions out of 10000i,1000n,20000p,200000b,200000s
-<C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmex10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr6.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy8.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmbx10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmbx12.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmcsc10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmri10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmss10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmtt10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/tex-gyre/qhvr.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/tex-gyre/qhvri.pfb>
-Output written on c:\Users\lilou\OneDrive\Documenten\thesis\Paper\build\thesis.pdf (41 pages, 448868 bytes).
+ 98i,11n,107p,1526b,592s stack positions out of 10000i,1000n,20000p,200000b,200000s
+<C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmex10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr6.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmr8.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy8.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmbx10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmbx12.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmcsc10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmri10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmtt10.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/tex-gyre/qhvr.pfb><C:/Users/lilou/AppData/Local/Programs/MiKTeX/fonts/type1/public/tex-gyre/qhvri.pfb>
+Output written on c:\Users\lilou\OneDrive\Documenten\thesis\Paper\build\thesis.pdf (35 pages, 395948 bytes).
 PDF statistics:
- 550 PDF objects out of 1000 (max. 8388607)
- 110 named destinations out of 1000 (max. 500000)
- 246 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 481 PDF objects out of 1000 (max. 8388607)
+ 91 named destinations out of 1000 (max. 500000)
+ 206 words of extra memory for PDF output out of 10000 (max. 10000000)
 
