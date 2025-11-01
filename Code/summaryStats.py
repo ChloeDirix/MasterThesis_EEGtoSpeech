@@ -32,8 +32,8 @@ def SummaryStats(r_att, r_unatt):
 
 def plot_histograms(r_att, r_unatt):
     plt.figure(figsize=(7,4))
-    plt.hist(r_att, bins=15, alpha=0.7, label='r_att')
-    plt.hist(r_unatt, bins=15, alpha=0.7, label='r_unatt')
+    plt.hist(r_att, bins=20, alpha=0.7, label='r_att')
+    plt.hist(r_unatt, bins=20, alpha=0.7, label='r_unatt')
     plt.xlabel('Pearson r')
     plt.legend()
     plt.title('Distribution of correlations across trials')

@@ -4,25 +4,25 @@ from sklearn.linear_model import Ridge
 from scipy.linalg import toeplitz
 
 def create_lag_matrix(X, lags):
-    """
-    X: EEG (samples × channels)
-    lags: list/array of lags in samples (e.g., -32..32)
-    """
     n_samples, n_ch = X.shape
     lagged = []
-
     for lag in lags:
         if lag < 0:
-            lagged.append(np.vstack([X[-lag:], np.zeros((-lag, n_ch))]))
+            # EEG earlier (shift forward)
+            rolled = np.roll(X, -lag, axis=0)
+            rolled[-lag:, :] = 0
         elif lag > 0:
-            lagged.append(np.vstack([np.zeros((lag, n_ch)), X[:-lag]]))
+            # EEG later (shift backward)
+            rolled = np.roll(X, -lag, axis=0)
+            rolled[:lag, :] = 0
         else:
-            lagged.append(X)
-
+            rolled = X.copy()
+        lagged.append(rolled)
     return np.hstack(lagged)
 
 
-def train_backward_model(eeg, envelope, fs, lambda_val=1.0, lag_ms=(-100,400)):
+
+def train_backward_model(eeg, envelope, fs, lambda_val=0.01, lag_ms=(-100,400)):
     """
     eeg: (samples × channels)
     envelope: (samples,)
@@ -33,6 +33,8 @@ def train_backward_model(eeg, envelope, fs, lambda_val=1.0, lag_ms=(-100,400)):
 
     X_lagged = create_lag_matrix(eeg, lag_samp)
     y = envelope.reshape(-1,1)
+    X_lagged = (X_lagged - X_lagged.mean(axis=0)) / X_lagged.std(axis=0)
+    y = (y - y.mean()) / y.std()
 
     model = Ridge(alpha=lambda_val)
     model.fit(X_lagged, y)
@@ -40,6 +42,7 @@ def train_backward_model(eeg, envelope, fs, lambda_val=1.0, lag_ms=(-100,400)):
 
 
 def evaluate_model(model, eeg, envelope, lags):
+
     X_lagged = create_lag_matrix(eeg, lags)
     pred = model.predict(X_lagged).ravel()
     corr = np.corrcoef(pred, envelope)[0,1]

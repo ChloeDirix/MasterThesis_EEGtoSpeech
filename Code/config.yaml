@@ -1,6 +1,6 @@
 # General configuration
 target_fs: 64
-band: [1, 9]
+band: [1, 20]
 plot_seconds: 30
 plot_steps: False
 plot_Envelope_Checks: False
@@ -13,8 +13,13 @@ stim_dir: "Data/stimuli"
 PP_dir: "Data/preprocessed"
 Env_dir: "Data/envelopes"
 
+# What steps
+Do_preprocessing: True
+
 # Subjects to process
 subjects:
   - S1
-  # - S2
-  # - S3
+
+
+
+

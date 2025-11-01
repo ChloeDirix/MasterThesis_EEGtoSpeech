@@ -4,24 +4,21 @@
     "type": "split",
     "children": [
       {
-        "id": "d8c38721263d065b",
+        "id": "4509724f8bf84da7",
         "type": "tabs",
         "children": [
           {
-            "id": "340da9a334b5d9e8",
+            "id": "e7a7b303c61786dc",
             "type": "leaf",
             "state": {
-              "type": "canvas",
+              "type": "markdown",
               "state": {
-                "file": "ObsidianMasterThesis/ThesisPlanner.canvas",
-                "viewState": {
-                  "x": -50.5,
-                  "y": -270,
-                  "zoom": -0.6066744601622573
-                }
+                "file": "ObsidianMasterThesis/Papers/Overview folder/Preprocessing.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "lucide-layout-dashboard",
-              "title": "ThesisPlanner"
+              "icon": "lucide-file",
+              "title": "Preprocessing"
             }
           }
         ]
@@ -210,14 +207,14 @@
       "iconic:Open rulebook": false
     }
   },
-  "active": "340da9a334b5d9e8",
+  "active": "e7a7b303c61786dc",
   "lastOpenFiles": [
+    "ObsidianMasterThesis/ThesisPlanner.canvas",
     "image.png",
     "ObsidianMasterThesis/Papers/Geirnaert/Subject intro.md",
     "ObsidianMasterThesis/Papers/Overview folder/Notes Intro.md",
     "ObsidianMasterThesis/Guidelines/paper layout and template.md",
     "ObsidianMasterThesis/Guidelines/guidelines_thesis.pdf",
-    "ObsidianMasterThesis/ThesisPlanner.canvas",
     "ObsidianMasterThesis/Papers/Overview folder/Preprocessing.md",
     "ObsidianMasterThesis/Papers/Overview folder/Plan/Plan....md",
     "image-9.png",

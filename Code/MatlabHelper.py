@@ -82,7 +82,6 @@ def find_trials(mat):
 
 # Orient array correctly (samples (t) × channels) (necessary for mne)
 def orient_eeg(eeg_arr, n_ch):
-    #eeg_arr = np.squeeze(np.array(eeg_arr))
     if n_ch is not None:
         if eeg_arr.shape[0] == n_ch:  # nr of rows equals nr of channels
             eeg = eeg_arr.T  # transpose
@@ -97,20 +96,3 @@ def orient_eeg(eeg_arr, n_ch):
         eeg = eeg_arr.T if eeg_arr.shape[0] <= 256 and eeg_arr.shape[1] > eeg_arr.shape[0] else eeg_arr
     return eeg
 
-def align_lengths(eeg, env_left, env_right):
-    lens = [len(eeg)]
-    if env_left is not None: lens.append(len(env_left))
-    if env_right is not None: lens.append(len(env_right))
-    min_len = min(lens)
-    eeg = eeg[:min_len]
-    if env_left is not None: env_left = env_left[:min_len]
-    if env_right is not None: env_right = env_right[:min_len]
-    return eeg, env_left, env_right
-
-def get_attended(attended_ear, env_left, env_right):
-    if attended_ear and env_left is not None and env_right is not None:
-        if str(attended_ear).upper().startswith("L"):
-            return env_left, env_right
-        else:
-            return env_right, env_left
-    return env_left, env_right

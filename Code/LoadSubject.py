@@ -15,19 +15,18 @@ class LoadSubject:
         #filepaths
         self.base_dir = cfg["base_dir"]
         self.data_dir = os.path.join(self.base_dir, cfg["data_dir"])
-        self.stim_dir = os.path.join(self.base_dir, cfg["stim_dir"])
 
-        self.PP_dir = os.path.join(self.base_dir, cfg["PP_dir"])
-        self.Env_dir= os.path.join(self.base_dir, cfg["Env_dir"])
+        # self.PP_dir = os.path.join(self.base_dir, cfg["PP_dir"])
+        # self.Env_dir= os.path.join(self.base_dir, cfg["Env_dir"])
 
         #Find subject data with the subject ID
-        self.subject_file = os.path.join(self.data_dir, f"{subject_id}.mat")
-        self.mat = loadmat(self.subject_file, squeeze_me=True, struct_as_record=False)
+        subject_file = os.path.join(self.data_dir, f"{subject_id}.mat")
+        self.mat = loadmat(subject_file, squeeze_me=True, struct_as_record=False)
         self.dataExploration()
         #self.Rawtrials = self.mat['trials']
         self.Rawtrials = find_trials(self.mat)
         self.trials=[]
-        self.LoadTrials(self.Rawtrials)
+        self.LoadTrials()
 
 
     def dataExploration(self):
@@ -42,7 +41,7 @@ class LoadSubject:
             print("- Stimuli:", get_field(t, "stimuli"))
             print("- Attended:", get_field(t, "attended_ear"))
 
-    def LoadTrials(self, idx):
+    def LoadTrials(self):
         for i, RawTrial in enumerate(self.Rawtrials, start=1):
             print(f"\n--- Trial {i} ---")
             trialObject = Trial(i, self.cfg, self.subject_id)
@@ -56,6 +55,7 @@ class LoadSubject:
 
     def getTrials(self):
         return self.trials
+
 
 
 
