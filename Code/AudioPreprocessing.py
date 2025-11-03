@@ -9,32 +9,7 @@ from math import gcd
 from mne.filter import resample, filter_data
 
 
-# --------------------------
-# Filter functions
-# --------------------------
-def low_pass_filter(x, fs, cutoff=8.0, order=3):
-    nyq = fs / 2
-    b, a = butter(order, cutoff / nyq, btype="low")
-    return filtfilt(b, a, x)
 
-def fast_resample(data, orig_fs, target_fs, axis=0):
-    if orig_fs == target_fs:
-        return data
-
-    # Anti-alias before downsampling
-    #cutoff = min(target_fs / 2 * 0.9, orig_fs / 2 * 0.9)
-    #data = anti_alias_filter(data, orig_fs, cutoff)
-
-    # Direct ratio (no integer rounding!)
-    up = target_fs
-    down = orig_fs
-
-    data_resampled = resample_poly(data, up, down, axis=axis)
-
-    # Correct amplitude scaling (resample_poly divides by down/up)
-    data_resampled *= (down / up)
-
-    return data_resampled
 
 # --------------------------
 # Preprocessing Audio
@@ -144,20 +119,19 @@ def extract_envelope_hilbert(audio, fs_audio, target_fs, lp_cutoff=9, plot=False
     audio=audio.astype(np.float64)
 
     # --- High-pass filter (remove DC) ---
-    audio=filter_data(audio.astype(float), fs_audio, 1, None, verbose='CRITICAL')
+    audio=filter_data(audio, fs_audio, 1, None, method='fir', phase='zero', verbose='CRITICAL')
 
     # --- Envelope extraction via Hilbert ---
     env = np.abs(hilbert(audio))
 
     # --- Low-pass filter envelope ---
-    env = filter_data(env, fs_audio, None, lp_cutoff, verbose='CRITICAL')
+    env = filter_data(env, fs_audio, None, lp_cutoff, method='fir', phase='zero', verbose='CRITICAL')
 
     # --- Resample to target_fs ---
-    #env = resample(env, up=target_fs, down=fs_audio, verbose='CRITICAL')
-    env = resample(env, down=fs_audio / target_fs)
+    env = resample_poly(env, target_fs, fs_audio)
 
     # --- Normalize ---
-    env = zscore(env)
+    #env = zscore(env)
 
     if plot:
         t_audio = np.arange(len(audio)) / fs_audio
@@ -169,43 +143,6 @@ def extract_envelope_hilbert(audio, fs_audio, target_fs, lp_cutoff=9, plot=False
         plt.title("Audio waveform vs. extracted envelope")
         plt.tight_layout()
         plt.show()
-
-    return env
-
-def extract_envelope_old(audio, fs_audio, target_fs):
-    #audio = audio.astype(np.float32)
-
-    # Detect and correct scaling
-    if np.max(np.abs(audio)) > 100:  # likely int16 PCM
-        audio /= 32768.0
-    elif np.max(np.abs(audio)) == 0:
-        print("Warning: silent audio detected!")
-    # Resample
-    print(f"[DEBUG] fs_audio={fs_audio}, target_fs={target_fs}")
-    audio_resampled = fast_resample(audio, fs_audio, target_fs)
-    fs_env = target_fs
-
-    # Extract envelope
-    print(f"[DEBUG] audio range before scaling: min={audio.min():.3f}, max={audio.max():.3f}")
-    print(f"[DEBUG] after resample: min={audio_resampled.min():.3f}, max={audio_resampled.max():.3f}")
-    env = np.abs(hilbert(audio_resampled))
-    print(f"[DEBUG] envelope mean={np.mean(env):.6f}, std={np.std(env):.6f}")
-
-    env = low_pass_filter(env, fs_env)
-    t_audio = np.arange(len(audio)) / fs_audio
-    t_env = np.arange(len(env)) / target_fs
-
-    plt.figure(figsize=(10, 4))
-    plt.plot(t_audio, audio / np.max(np.abs(audio)), 'r', alpha=0.5, label="Audio (norm.)")
-    plt.plot(t_env, env / np.max(env), 'b', label="Envelope (norm.)")
-    plt.legend()
-    plt.xlabel("Time (s)")
-    plt.title("Audio vs Envelope (normalized)")
-    plt.tight_layout()
-    plt.show()
-
-    # Normalize
-    env = zscore(env)
 
     return env
 
@@ -224,10 +161,10 @@ def align_lengths(eeg, env_left, env_right):
 def get_attended(attended_ear, env_left, env_right):
     if attended_ear and env_left is not None and env_right is not None:
         if str(attended_ear).upper().startswith("L"):
-            print(attended_ear," attended ear = L")
+            #print(attended_ear," attended ear = L")
             return env_left, env_right
         else:
-            print(attended_ear," attended ear = R")
+            #print(attended_ear," attended ear = R")
             return env_right, env_left
     return env_left, env_right
 

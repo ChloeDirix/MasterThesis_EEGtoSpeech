@@ -101,17 +101,17 @@ class Trial:
         # Filter info (optional)
         try:
             self.filter_impl = MH.get_field(rawdata, "FilterImplementation")
-            print("filterImpl ", self.filter_impl)
+            print("-- filterImpl ", self.filter_impl)
         except Exception:
             self.filter_impl = None
         try:
             self.filter_order = MH.get_field(rawdata, "FilterOrder")
-            print("filterorder :",self.filter_order)
+            print("-- filterorder :",self.filter_order)
         except Exception:
             self.filter_order = None
         try:
             self.highpass = MH.get_field(rawdata, "HighPass")
-            print("HP ",self.highpass)
+            print("-- HP ",self.highpass)
         except Exception:
             self.highpass = None
 
@@ -157,67 +157,67 @@ class Trial:
     def _extract_file_header(self, fh):
         try:
             self.channel_count = MH.get_field(fh, "ChannelCount")
-            print("channel_count: ", self.channel_count)
+            print("-- channel_count: ", self.channel_count)
         except Exception:
             self.channel_count = None
 
         try:
             self.data_format = MH.get_field(fh, "DataFormat")
-            print("data_format: ", self.data_format)
+            print("-- data_format: ", self.data_format)
         except Exception:
             self.data_format = None
 
         try:
             self.electrode_cap = MH.get_field(fh, "ElectrodeCap")
-            print("electrodeCap: ", self.electrode_cap)
+            print("-- electrodeCap: ", self.electrode_cap)
         except Exception:
             self.electrode_cap = None
 
         try:
             self.file_type = MH.get_field(fh, "FileType")
-            print("filetype: ", self.file_type)
+            print("-- filetype: ", self.file_type)
         except Exception:
             self.file_type = None
 
         try:
             self.file_type_id = MH.get_field(fh, "FileTypeId")
-            print("fileTypeID: ", self.file_type_id)
+            print("-- fileTypeID: ", self.file_type_id)
         except Exception:
             self.file_type_id = None
 
         try:
             self.file_type_numeric = MH.get_field(fh, "FileTypeNumeric")
-            print("fileTypenum: ", self.file_type_numeric)
+            print("-- fileTypenum: ", self.file_type_numeric)
         except Exception:
             self.file_type_numeric = None
 
         try:
             self.gains = MH.get_field(fh, "Gains")
-            print("gains: ", self.gains)
+            print("-- gains: ", self.gains)
         except Exception:
             self.gains = None
 
         try:
             self.recording_info = MH.get_field(fh, "Recording")
-            print("recording: ", self.recording_info)
+            print("-- recording: ", self.recording_info)
         except Exception:
             self.recording_info = None
 
         try:
             self.fs_eeg = float(MH.get_field(fh, "SampleRate"))
-            print("fs_header: ", self.fs_eeg)
+            print("-- fs_header: ", self.fs_eeg)
         except Exception:
             self.fs_eeg = 128.0
 
         try:
             self.subject = str(MH.get_field(fh, "Subject"))
-            print("subject: ", self.subject)
+            print("-- subject: ", self.subject)
         except Exception:
             pass
 
         try:
             self.trial_id = str(MH.get_field(fh, "TrialID"))
-            print("trialID: ", self.trialID)
+            print("-- trialID: ", self.trialID)
         except Exception:
             self.trial_id = f"trial_{self.index}"
 

@@ -23,27 +23,39 @@ def create_lag_matrix(X, lags):
 
 
 def train_backward_model(eeg, envelope, fs, lambda_val=0.01, lag_ms=(-100,400)):
-    """
-    eeg: (samples × channels)
-    envelope: (samples,)
-    lag_ms: min and max lag in milliseconds
-    """
+
     lag_samp = np.arange(int(lag_ms[0]/1000*fs),
                          int(lag_ms[1]/1000*fs))
 
+
     X_lagged = create_lag_matrix(eeg, lag_samp)
-    y = envelope.reshape(-1,1)
-    X_lagged = (X_lagged - X_lagged.mean(axis=0)) / X_lagged.std(axis=0)
-    y = (y - y.mean()) / y.std()
+    X_mean=X_lagged.mean(axis=0)
+    X_std=X_lagged.std(axis=0)
+    X_lagged = (X_lagged - X_mean ) / X_std
+
+    y = envelope.reshape(-1, 1)
+    y_mean=y.mean()
+    y_std=y.std()
+    y = (y - y_mean) / y_std
 
     model = Ridge(alpha=lambda_val)
     model.fit(X_lagged, y)
-    return model, lag_samp
+    return model, lag_samp, [X_mean,X_std,y_mean, y_std]
 
 
-def evaluate_model(model, eeg, envelope, lags):
+def evaluate_model(model, eeg, envelope, lags, mean_std_list):
+    X_mean_train=mean_std_list[0]
+    X_std_train=mean_std_list[1]
+    y_mean_train=mean_std_list[2]
+    y_std_train=mean_std_list[3]
 
     X_lagged = create_lag_matrix(eeg, lags)
+    X_lagged = (X_lagged - X_mean_train) / X_std_train
+
+    envelope=(envelope-y_mean_train) / y_std_train
+
     pred = model.predict(X_lagged).ravel()
     corr = np.corrcoef(pred, envelope)[0,1]
+
+
     return corr, pred

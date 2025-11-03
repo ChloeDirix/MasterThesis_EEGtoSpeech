@@ -1,20 +1,25 @@
-# General configuration
+# Directory info
+base_dir: "C:/Users/lilou/OneDrive/Documenten/thesis"
+data_dir: "Data/EEGData"
+stim_dir: "Data/stimuli"
+PP_dir: "Data/preprocessed"
+Env_dir: "Data/envelopes"
+
+# Preprocessing config
 target_fs: 64
 band: [1, 20]
 plot_seconds: 30
 plot_steps: False
 plot_Envelope_Checks: False
 
-# Directory info
-base_dir: "C:/Users/lilou/OneDrive/Documenten/thesis"
-
-data_dir: "Data/EEGData"
-stim_dir: "Data/stimuli"
-PP_dir: "Data/preprocessed"
-Env_dir: "Data/envelopes"
+# backward model cfg
+decision_window: 30 #s
+decision_step: 1 #s
+lambda_val: 1000
+lag_ms: [-100, 400]  #ms
 
 # What steps
-Do_preprocessing: True
+Do_preprocessing: False
 
 # Subjects to process
 subjects:

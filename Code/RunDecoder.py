@@ -9,10 +9,12 @@ def run_mTRF(subjects_list, cfg):
     env_dir = os.path.join(cfg["base_dir"], cfg["Env_dir"])
     fs=cfg[("target_fs")]
 
+    window_s = cfg.get("decision_window_s", 10)
+    step_s = cfg.get("decision_step_s", 1)
+
 
     for subject_id,subject_data in subjects_list:
         data = []
-        # Gather valid trials
         for trial_index in range(1, subject_data.get_trial_count() + 1):
             eeg_file = os.path.join(pp_dir, f"{subject_id}_trial{trial_index:02d}_preprocessed.npy")
             env_att_file = os.path.join(env_dir, f"{subject_id}_trial{trial_index:02d}_env_att.npy")
@@ -44,15 +46,15 @@ def run_mTRF(subjects_list, cfg):
             train_env = np.hstack(train_env)
 
 
-            model, lags = train_backward_model(
-                train_eeg, train_env, fs=cfg["target_fs"],
+            model, lags, mean_std_list = train_backward_model(
+                train_eeg, train_env, fs,
                 lambda_val=1000, lag_ms=(-100, 400)
             )
 
             eeg_test, env_att_test, env_unatt_test = data[test_idx]
 
-            corr_att, _ = evaluate_model(model, eeg_test, env_att_test, lags)
-            corr_unatt, _ = evaluate_model(model, eeg_test, env_unatt_test, lags)
+            corr_att, _ = evaluate_model(model, eeg_test, env_att_test, lags, mean_std_list)
+            corr_unatt, _ = evaluate_model(model, eeg_test, env_unatt_test, lags, mean_std_list)
             correct = corr_att > corr_unatt
 
             results.append({
@@ -64,5 +66,7 @@ def run_mTRF(subjects_list, cfg):
 
             print(f"Trial {test_idx+1}/{valid_trials}: "
                   f"r_att={corr_att:.3f} | r_unatt={corr_unatt:.3f} | correct={correct}")
+
+
 
     return results

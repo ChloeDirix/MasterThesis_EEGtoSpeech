@@ -81,7 +81,7 @@ def preprocess_trial(eeg,fs,cfg):
 
     # 4️⃣ Resample to target sampling rate
     if int(fs) != target_fs:
-        eeg = resample(eeg, down=fs / target_fs)
+        eeg = resample_poly(eeg, target_fs, fs)
         fs = target_fs
         nplot = min(int(plot_seconds * fs), eeg.shape[0])
         t = np.arange(nplot) / fs
@@ -94,7 +94,7 @@ def preprocess_trial(eeg,fs,cfg):
             axs[4].set_title("No resampling needed")
 
     # 5️⃣ Z-score per channel
-    eeg = zscore(eeg, axis=0)
+    #eeg = zscore(eeg, axis=0)
 
     return eeg
 def preprocess_trial_old(eeg, fs, cfg):

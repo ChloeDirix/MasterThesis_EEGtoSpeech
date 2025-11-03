@@ -22,8 +22,7 @@ class LoadSubject:
         #Find subject data with the subject ID
         subject_file = os.path.join(self.data_dir, f"{subject_id}.mat")
         self.mat = loadmat(subject_file, squeeze_me=True, struct_as_record=False)
-        self.dataExploration()
-        #self.Rawtrials = self.mat['trials']
+        #self.dataExploration()
         self.Rawtrials = find_trials(self.mat)
         self.trials=[]
         self.LoadTrials()
