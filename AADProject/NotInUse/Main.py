@@ -4,18 +4,16 @@ import os
 
 import numpy as np
 import yaml
-import EEGPreprocessing
-import AudioPreprocessing
-from Code import summaryStats, Diagnostics
-from Code.LoadSubject import LoadSubject
-#from Code.RunDecoder import run_mTRF
-from Code.RunBackwardModel import run_mTRF
+from Implementation.Code import EEGPreprocessing, summaryStats
+from Implementation.NotInUse.LoadSubject import LoadSubject
+from Implementation.Code.RunBackwardModel import run_mTRF
 
 
 # Load configuration file
-cfg = yaml.safe_load(open("config.yaml", "r"))
+cfg = yaml.safe_load(open("../config.yaml", "r"))
 preprocessing=cfg["Do_preprocessing"]
 subjects_List=[]
+
 
 for subject_id in cfg["subjects"]:
     print(f"\n=== Loading Subject {subject_id} ===")
@@ -26,19 +24,12 @@ for subject_id in cfg["subjects"]:
             print(f" Skipping trial {trial.index} — missing important fields!")
             continue
         if preprocessing == True:
-            #eegPreprocessing
-            eeg_PP=EEGPreprocessing.preprocess_trial(trial.eeg_data,trial.fs_eeg, cfg)
-            print(f"{trial.index}: eeg preprocessing done")
-            #audioPreprocessing
-            eeg, env_att, env_unatt=AudioPreprocessing.PreprocessAudioFiles(trial, eeg_PP, cfg, True)
-
-            trial.setEEG_PP(eeg)
-            trial.set_envelopes(env_att, env_unatt)
+            eeg_PP = EEGPreprocessing.preprocess_trial(trial, trial.eeg_data, trial.fs_eeg, cfg)
 
     subjects_List.append((subject_id, Subject_object))
 
 
-results=run_mTRF(subjects_List, cfg)
+results=run_mTRF(subjects_List,trial.env_att, trial.env_unatt, cfg)
 
 if len(results) == 0:
     print(f"No usable results, skipping summary.\n")

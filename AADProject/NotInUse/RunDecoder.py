@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-from BackwardModel import evaluate_model, train_backward_model
+from AADProject.Code.BackwardModel import evaluate_model, train_backward_model
 
 
 def run_mTRF(subjects_list, cfg):

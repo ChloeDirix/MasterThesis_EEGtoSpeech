@@ -1,0 +1,53 @@
+# Directory info
+base_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject"
+RawEEG_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/DataInput/EEGData"
+stim_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/DataInput/stimuli"
+Env_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/DataInput/envelopes"
+
+Data_output_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/DataOutput"
+Results_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/Results"
+
+
+
+# Preprocessing config
+target_fs: 32
+band: [1, 9]
+plot_seconds: 30
+plot_steps: False
+plot_Envelope_Checks: False
+
+# backward model cfg
+decision_window: 30 #s
+decision_step: 1 #s
+lambda_val: 1000
+lag_ms: [-100, 400]  #ms
+
+# What steps
+Do_preprocessing: False
+Do_BackwardModel: True
+
+# Subjects to process
+subjects:
+  - S1
+  - S2
+  - S3
+  - S4
+  - S5
+  - S6
+  - S7
+  - S8
+  - S9
+  - S10
+  - S11
+  - S12
+  - S13
+  - S14
+  - S15
+  - S16
+
+
+
+
+
+
+

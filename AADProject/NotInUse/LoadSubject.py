@@ -1,10 +1,9 @@
 import os
 
-import numpy as np
 from scipy.io import loadmat
 
-from Code.Trial import Trial
-from MatlabHelper import get_field, orient_eeg, find_trials
+from AADProject.NotInUse.Trial import Trial
+from AADProject.Code.MatlabHelper import get_field, find_trials
 
 class LoadSubject:
     def __init__(self,subject_id, cfg):
