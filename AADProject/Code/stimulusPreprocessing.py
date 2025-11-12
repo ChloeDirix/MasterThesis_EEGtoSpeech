@@ -80,11 +80,11 @@ def extract_envelope_das2019(audio, fs_audio, target_fs=32, hp_cutoff=1, lp_cuto
     envelope = filtfilt(bp_b, bp_a, envelope, axis=-1)
 
     # === 6. Downsample to 32 Hz target ===
-    envelope = resample_poly(envelope, target_fs, fs_env)
+    envelope = resample_poly(envelope, target_fs, fs_env, axis=-1)
     fs_env = target_fs
 
     # === 7. Optional normalization ===
-    envelope = zscore(envelope, axis=-1)
+    #envelope = zscore(envelope, axis=-1)
     print(f"Envelope type: {type(envelope)}")
     if isinstance(envelope, (list, tuple)):
         print(f"List length: {len(envelope)}")
@@ -104,7 +104,11 @@ def extract_envelope_das2019(audio, fs_audio, target_fs=32, hp_cutoff=1, lp_cuto
         plt.tight_layout()
         plt.show()
 
-    return np.mean(envelope, axis=0), fs_env, cf
+    band_energy = np.sqrt(np.mean(envelope ** 2, axis=1))
+    weights = band_energy / np.sum(band_energy)
+    broadband_env = np.average(envelope, axis=0, weights=weights)
+
+    return broadband_env, fs_env, cf
 
 def extract_envelope_gammatone(audio, fs_audio, target_fs, f_low=50, f_high=8000, n_filters=32, plot=False):
     audio = audio.astype(np.float64)
