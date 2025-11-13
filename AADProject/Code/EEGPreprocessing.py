@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from mne.filter import filter_data
-from scipy.signal import resample_poly
+from scipy.signal import resample_poly, remez, filtfilt, firwin
 from scipy.stats import zscore
 
 from DataModels import Trial
@@ -11,9 +11,14 @@ from DataModels import Trial
 # Filter functions
 # --------------------------
 
-def rereference(data):
-    """Common average re-reference. eeg shape = (samples, channels)."""
-    return data - np.mean(data, axis=1, keepdims=True)
+def rereference(data, cz_index=47):
+    return data - data[:, [cz_index]]
+
+def design_bandpass(fs, low=1.0, high=9.0, numtaps=513):
+    """FIR bandpass filter similar to MATLAB equiripple but simpler + stable."""
+    nyq = fs / 2
+    # Use firwin with Hamming (MATLAB defaults similar for simple FIR)
+    return firwin(numtaps, [low/nyq, high/nyq], pass_zero=False)
 
 
 # --------------------------
@@ -25,6 +30,7 @@ def preprocess_trial(trial, cfg):
     eeg = trial.eeg_raw
     fs = trial.fs_eeg
     target_fs = cfg["target_fs"]
+
     band = cfg["band"]
     lpbe, upbe = band
     plot_steps = cfg["plot_steps"]
@@ -35,7 +41,7 @@ def preprocess_trial(trial, cfg):
         nplot = min(int(plot_seconds * fs), eeg.shape[0])
         t = np.arange(nplot) / fs
         ch = 0
-        fig, axs = plt.subplots(5, 1, figsize=(10, 10), sharex=False)
+        fig, axs = plt.subplots(4, 1, figsize=(10, 10), sharex=False)
         fig.suptitle(f"EEG Preprocessing Pipeline — Trial {trial.index}", fontsize=14)
         axs[0].plot(t, eeg[:nplot, ch])
         axs[0].set_title("Raw EEG")
@@ -46,30 +52,31 @@ def preprocess_trial(trial, cfg):
         axs[1].plot(t, eeg[:nplot, ch])
         axs[1].set_title("After rereferencing")
 
-    # 2️⃣ High-pass filter
-    eeg = filter_data(eeg.astype(np.float64), fs, l_freq=lpbe, h_freq=None, verbose='CRITICAL')
+    # 2️⃣ band-pass filter
+    b = design_bandpass(fs, low=band[0], high=band[1])
+    eeg = filtfilt(b, [1], eeg, axis=0)
     if plot_steps:
         axs[2].plot(t, eeg[:nplot, ch])
         axs[2].set_title(f"After high-pass ({lpbe} Hz)")
 
-    # 3️⃣ Low-pass filter
-    eeg = filter_data(eeg, fs, l_freq=None, h_freq=upbe, verbose='CRITICAL')
-    if plot_steps:
-        axs[3].plot(t, eeg[:nplot, ch])
-        axs[3].set_title(f"After low-pass ({upbe} Hz)")
 
     # 4️⃣ Resample
     if int(fs) != target_fs:
-        eeg = resample_poly(eeg, target_fs, fs)
+        factor = int(round(fs / target_fs))
+        eeg = eeg[::factor]
         fs = target_fs
         if plot_steps:
             nplot = min(int(plot_seconds * fs), eeg.shape[0])
             t = np.arange(nplot) / fs
-            axs[4].plot(t, eeg[:nplot, ch])
-            axs[4].set_title(f"After resampling ({fs} Hz)")
+            axs[3].plot(t, eeg[:nplot, ch])
+            axs[3].set_title(f"After resampling ({fs} Hz)")
+
     elif plot_steps:
-        axs[4].plot(t, eeg[:nplot, ch])
-        axs[4].set_title("No resampling needed")
+        axs[3].plot(t, eeg[:nplot, ch])
+        axs[3].set_title("No resampling needed")
+
+    if plot_steps:
+        plt.show()
 
     # 5️⃣ (Optional) Z-score normalization
     #eeg = zscore(eeg, axis=0)
@@ -78,7 +85,7 @@ def preprocess_trial(trial, cfg):
     trial.fs_eeg = fs
     trial.metadata["preprocessed"] = True
 
-    return trial
+    return eeg, fs
 
 
 

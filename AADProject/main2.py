@@ -8,8 +8,8 @@ from pynwb import NWBHDF5IO
 # Import your new modular components
 from Loaders.matlab_loader import MatlabSubjectLoader
 from NWB.NWB_Manager import NWBManager
-from Code import EEGPreprocessing, RunBackwardModel, summaryStats
-from nwbwidgets import nwb2widget
+from Code import EEGPreprocessing, RunBackwardModel, summaryStats, DataPrep
+
 
 def main():
     # === 1. Load configuration ===
@@ -47,7 +47,6 @@ def main():
             print(f"Preprocessing EEG for {subject_id}...")
             for trial in subject.trials:
                 EEGPreprocessing.preprocess_trial(trial,cfg)
-
 
 
             # Save to NWB for reproducibility

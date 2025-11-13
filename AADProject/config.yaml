@@ -23,7 +23,7 @@ lambda_val: 1000
 lag_ms: [-100, 400]  #ms
 
 # What steps
-Do_preprocessing: False
+Do_preprocessing: True
 Do_BackwardModel: True
 
 # Subjects to process

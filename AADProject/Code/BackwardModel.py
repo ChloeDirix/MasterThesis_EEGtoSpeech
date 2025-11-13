@@ -7,19 +7,27 @@ from sklearn.linear_model import Ridge, LinearRegression
 import numpy as np
 
 def create_lag_matrix(X, lags):
-
     n_samples, n_ch = X.shape
-    lags = np.asarray(lags)
+    lags = np.asarray(lags, dtype=int)
     n_lags = len(lags)
+
     X_lagged = np.zeros((n_samples, n_lags * n_ch), dtype=X.dtype)
 
     for i, lag in enumerate(lags):
-        rolled = np.roll(X, -lag, axis=0)
-        if lag < 0:
-            rolled[-lag:, :] = 0
-        elif lag > 0:
-            rolled[:lag, :] = 0
-        X_lagged[:, i*n_ch:(i+1)*n_ch] = rolled
+        col_start = i * n_ch
+        col_end = col_start + n_ch
+
+        if lag > 0:
+            # X_lagged[t] = X[t + lag] for t = 0..n_samples-lag-1
+            X_lagged[:-lag, col_start:col_end] = X[lag:, :]
+            # last 'lag' rows stay 0
+        elif lag < 0:
+            d = -lag
+            # X_lagged[t] = X[t - d] for t = d..n_samples-1
+            X_lagged[d:, col_start:col_end] = X[:-d, :]
+            # first 'd' rows stay 0
+        else:  # lag == 0
+            X_lagged[:, col_start:col_end] = X
 
     return X_lagged
 
