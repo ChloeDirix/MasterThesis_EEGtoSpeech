@@ -1,4 +1,17 @@
 # Directory info
+"""
+base_dir: Path to the root folder of the whole project, containing all code necessary.
+DataInput
+  - RawEEG_dir=Location of the raw EEG files.
+  - stim_dir: Folder with audio stimuli (.wav) used in the attention experiment.
+  - Env_dir: contains envelopes of the corresponding stimuli
+
+DataOutput
+  - contains preprocessed EEGData in .nwb format
+
+Results_dir: contains final classification accuracies, correlations, and plots.
+"""
+
 base_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject"
 RawEEG_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/DataInput/EEGData"
 stim_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/DataInput/stimuli"
@@ -10,13 +23,21 @@ Results_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/Results"
 
 
 # Preprocessing config
-target_fs: 32
+"""
+target_fs: 
+  frequency to which eeg and envelopes are downsampled. 
+  Can be 2 times the bandwidth at its lowest (2 FN)
+band: 
+  Speech envelope tracking (cortical entrainment) occurs primarily in the delta (0.5–4 Hz) and theta (4–8 Hz) ranges
+"""
+target_fs: 32  #min 18Hz
 band: [1, 9]
+
 plot_seconds: 30
 plot_steps: False
 plot_Envelope_Checks: False
 
-# backward model cfg
+# backward model
 decision_window: 30 #s
 decision_step: 1 #s
 lambda_val: 1000

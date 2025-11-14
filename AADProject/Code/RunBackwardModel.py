@@ -89,14 +89,10 @@ def run_mTRF(nwb_path: str, cfg):
             eeg, env_att, env_unatt = DataPrep.PrepareInputs(eeg, envL, envR, att_ear)
             data.append((eeg, env_att, env_unatt))
 
-    # =========== MERGE REPETITION TRIALS HERE ===========
+    # merge repetition trials
     print("Merging repetition trials based on stimulus names...")
 
     long_data, merged_data = DataPrep.merge_repetition_trials(trials, data)
-
-    # Build final data list:
-    #   - long_data = original long 6-min trials (Exp1 + Exp2)
-    #   - merged_data = reconstructed 6-min repetitions (Exp3)
     data = long_data + merged_data
 
     print(f"Final number of trials after merging: {len(data)}")

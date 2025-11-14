@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 
 
@@ -37,44 +39,34 @@ def get_attended(attended_ear, env_left, env_right):
         return env_right, env_left
 
 
-def merge_repetition_trials(trials_df, eeg_all, env_att_all, env_unatt_all):
+def merge_repetition_trials(trials_df, data):
+    stim_names = trials_df["stim_L_name"].apply(lambda x: os.path.splitext(x)[0]).tolist()
 
-    merged_eeg = []
-    merged_att = []
-    merged_unatt = []
-    merged_meta = []
+    long_indices = [i for i, s in enumerate(stim_names) if not s.startswith("rep_")]
 
-    # ---- 1) Identify unique long-trial stimuli (those without "rep_") ----
-    stim_names = trials_df['stimulus'].tolist()
+    # Build mapping: long_stim_name → indices of repetition trials
+    rep_groups = {}
+    for i, s in enumerate(stim_names):
+        if s.startswith("rep_"):
+            original = s[4:]  # remove 'rep_'
+            rep_groups.setdefault(original, []).append(i)
 
-    long_stims = sorted({name for name in stim_names if not name.startswith("rep_")})
+    merged_data = []
 
-    # ---- 2) For each long stimulus, find its 3 repetition trials ----
-    for stim in long_stims:
+    # Merge only if exactly 3 repetitions exist
+    for original_stim, idx_list in rep_groups.items():
+        if len(idx_list) != 3:
+            print(f"⚠ Warning: {original_stim} has {len(idx_list)} repetitions, skipping merge.")
+            continue
 
-        # Find indices of repetition trials "rep_<stim>"
-        rep_name = f"rep_{stim}"
-        rep_idx = [i for i, s in enumerate(stim_names) if s == rep_name]
+        eeg_concat = np.concatenate([data[i][0] for i in idx_list], axis=0)
+        att_concat = np.concatenate([data[i][1] for i in idx_list], axis=0)
+        unatt_concat = np.concatenate([data[i][2] for i in idx_list], axis=0)
 
-        # Only merge if we have repetitions (Exp1 has, Exp2 does NOT)
-        if len(rep_idx) == 3:
-            # Extract arrays
-            eeg_parts = [eeg_all[i] for i in rep_idx]
-            att_parts = [env_att_all[i] for i in rep_idx]
-            unatt_parts = [env_unatt_all[i] for i in rep_idx]
+        merged_data.append((eeg_concat, att_concat, unatt_concat))
 
-            # Concatenate in time
-            eeg_concat = np.concatenate(eeg_parts, axis=0)
-            att_concat = np.concatenate(att_parts, axis=0)
-            unatt_concat = np.concatenate(unatt_parts, axis=0)
+    # Long trials (Exp1 and Exp2)
+    long_data = [data[i] for i in long_indices]
 
-            merged_eeg.append(eeg_concat)
-            merged_att.append(att_concat)
-            merged_unatt.append(unatt_concat)
-            merged_meta.append({
-                "stimulus": stim,
-                "source_trials": rep_idx
-            })
-
-    return merged_eeg, merged_att, merged_unatt, merged_meta
+    return long_data, merged_data
 
