@@ -1,53 +1,74 @@
-# Directory info
-"""
-base_dir: Path to the root folder of the whole project, containing all code necessary.
-DataInput
-  - RawEEG_dir=Location of the raw EEG files.
-  - stim_dir: Folder with audio stimuli (.wav) used in the attention experiment.
-  - Env_dir: contains envelopes of the corresponding stimuli
+# Directory Paths ---------------------------
 
-DataOutput
-  - contains preprocessed EEGData in .nwb format
+# base_dir: Path to the root folder of the whole project, containing everything.
+# Data_Das2019
+#  - RawEEG_dir=Location of the raw EEG files.
+#  - stim_dir: Folder with audio stimuli (.wav) used in the attention experiment.
+#
+# Data_ModelInput
+#  - Env_dir: contains envelopes of the corresponding stimuli
+#  - EEG_PP:contains preprocessed EEGData in .nwb format
+#
+# Results_dir: contains final classification accuracies, correlations, and plots.
 
-Results_dir: contains final classification accuracies, correlations, and plots.
-"""
 
 base_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject"
-RawEEG_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/DataInput/EEGData"
-stim_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/DataInput/stimuli"
-Env_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/DataInput/envelopes"
 
-Data_output_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/DataOutput"
+RawEEG_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/Data_Das2019/EEGData"
+stim_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/Data_Das2019/stimuli"
+
+Env_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/Data_InputModel/Envelopes"
+EEG_PP_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/Data_InputModel/EEG_PP"
+
 Results_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/Results"
 
 
+# Preprocessing config ---------------------------
 
-# Preprocessing config
-"""
-target_fs: 
-  frequency to which eeg and envelopes are downsampled. 
-  Can be 2 times the bandwidth at its lowest (2 FN)
-band: 
-  Speech envelope tracking (cortical entrainment) occurs primarily in the delta (0.5–4 Hz) and theta (4–8 Hz) ranges
-"""
-target_fs: 32  #min 18Hz
-band: [1, 9]
+#target_fs:
+#  frequency to which eeg and envelopes are downsampled. This dramatically reduces data size
+#  Can be 2 times the bandwidth at its lowest (2 FN)
+#band:
+#  Speech envelope tracking (cortical entrainment) occurs primarily in the delta (0.5–4 Hz) and theta (4–8 Hz) ranges
+#  Filter out noise while keeping most relevant envelope information
+#plot:
+#  plot 30s chuncks of EEG/envelopes for visual inspection
 
-plot_seconds: 30
-plot_steps: False
-plot_Envelope_Checks: False
+target_fs: 32   #Hz -- min 18Hz
+band: [1, 9]    #Hz
+rereference_method: "Cz"
 
-# backward model
-decision_window: 30 #s
-decision_step: 1 #s
-lambda_val: 1000
+plot_seconds: 30  #s
+plot_EEGPP_steps: False
+plot_EnvelopeExtr: False
+
+# backward model ---------------------------
+#Decision_window:
+#  model evaluates on 30s windows
+#  trade off between longer windows (higher accuracy) & shorter windows (less decision time)
+#
+#Decision_step:
+#  overlapping windows: 30s window slides by 1s
+#  why?
+#
+#lag_ms:
+#  defines temporal integration window over the mTRF
+#  - cortical responses ~100ms
+#  - use longer windows to capture more complex relations + artefact calibration
+
+decision_window: 30  #s
+decision_step: 1     #s
 lag_ms: [-100, 400]  #ms
+multiband: True
 
-# What steps
+
+# What steps do you want to do? ---------------------------
+Do_envelope_extraction: False
 Do_preprocessing: True
 Do_BackwardModel: True
 
-# Subjects to process
+
+# Subjects to process ---------------------------
 subjects:
   - S1
   - S2

@@ -30,7 +30,7 @@ def SummaryStats(r_att, r_unatt):
     print(f"Binomial test: {n_correct}/{n_total} correct, p = {p_binom:.3e}")
     return dict(mean_att=mean_att, mean_un=mean_un, acc=acc, t_p=pval, binom_p=p_binom)
 
-def plot_histograms(r_att, r_unatt):
+def plot_histograms(r_att, r_unatt, save_path):
     plt.figure(figsize=(7,4))
     plt.hist(r_att, bins=20, alpha=0.7, label='r_att')
     plt.hist(r_unatt, bins=20, alpha=0.7, label='r_unatt')
@@ -38,7 +38,13 @@ def plot_histograms(r_att, r_unatt):
     plt.legend()
     plt.title('Distribution of correlations across trials')
     plt.tight_layout()
+
+    if save_path is not None:
+        plt.savefig(save_path, dpi=300)
+        print(f"Histogram plot saved to: {save_path}")
+
     plt.show()
+
 
 # ---------------------------
 # Permutation (circular shift) test: compute null distribution per trial

@@ -16,6 +16,40 @@ class NWBManager:
             session_start_time=datetime.now(),
         )
 
+        # Add custom electrode column for channel names
+        nwb.add_electrode_column(
+            name="label",
+            description="EEG channel name"
+        )
+
+        #save electrodes
+        device = nwb.create_device(name="EEG_cap")
+
+        # Create an electrode group (required by NWB)
+        eeg_group = nwb.create_electrode_group(
+            name="EEG_group",
+            description="EEG electrodes",
+            location="scalp",
+            device=device
+        )
+        # Add electrodes to the group
+        channel_names = subject.trials[0].channels  # assumed present
+        for i, ch_name in enumerate(channel_names):
+            nwb.add_electrode(
+                id=i,
+                x=np.nan, y=np.nan, z=np.nan,
+                imp=np.nan,
+                location="scalp",
+                group=eeg_group,  # ✔ correct type
+                label=ch_name
+            )
+
+        # region referencing all electrodes
+        all_electrodes = nwb.create_electrode_table_region(
+            region=list(range(len(channel_names))),  # ✔ valid
+            description="All EEG electrodes"
+        )
+
         eeg_proc_module = ProcessingModule(
             name="eeg_preprocessed",
             description="Filtered, rereferenced, and resampled EEG data."
@@ -46,35 +80,16 @@ class NWBManager:
 
             # 2️⃣ Preprocessed EEG (if available)
             if hasattr(trial, "eeg_PP") and trial.eeg_PP is not None:
-                preproc_series = TimeSeries(
+                preproc_series = ElectricalSeries(
                     name=f"trial_{trial.index}_EEG_preprocessed",
                     data=trial.eeg_PP,
-                    unit="microvolts",
+                    electrodes=all_electrodes,  # ← link electrodes!
                     starting_time=0.0,
                     rate=float(trial.fs_eeg),
                     description="Preprocessed EEG (bandpass, reref, resampled)"
                 )
                 eeg_proc_module.add_data_interface(preproc_series)
 
-            # # 3️⃣ Stimuli
-            # if hasattr(trial, "stimuli") and trial.stimuli:
-            #     for side, stim in trial.stimuli.items():
-            #         stim_series = TimeSeries(
-            #             name=f"trial_{trial.index}_stim_{side}",
-            #             data=stim,
-            #             unit="a.u.",
-            #             starting_time=0.0,
-            #             rate=trial.fs_stimuli.get(side, trial.fs_eeg),
-            #             description=f"Stimulus envelope ({side})"
-            #         )
-            #         nwb.add_stimulus(stim_series)
-
-            # clean_meta = {}
-            # for k, v in trial.metadata.items():
-            #     if isinstance(v, (list, dict, np.ndarray)):
-            #         clean_meta[k] = str(v)
-            #     else:
-            #         clean_meta[k] = v
 
 
             # Add the trial
@@ -84,7 +99,6 @@ class NWBManager:
                 attended_ear=trial.metadata.get("attended_ear"),
                 stim_L_name=trial.metadata.get("stim_names")[0],
                 stim_R_name=trial.metadata.get("stim_names")[1],
-
             )
 
         # 5️⃣ Write to disk

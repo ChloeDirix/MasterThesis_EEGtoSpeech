@@ -26,7 +26,7 @@ def run_trial_diagnostics(subject_id, trial_index, fs=64, max_lag_ms=500, cfg_fi
     assert eeg.shape[0] == env.shape[0], "EEG and envelope length mismatch"
 
     # ------------------------------------------------
-    # Basic stats
+    # Basic stats.json
     # ------------------------------------------------
     def quick_stats(name, x):
         print(f"{name:20s} mean={np.mean(x):8.3g}  std={np.std(x):8.3g}  min={np.min(x):8.3g}  max={np.max(x):8.3g}")
