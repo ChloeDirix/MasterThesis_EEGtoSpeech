@@ -118,8 +118,8 @@ def preprocess_trial(trial, cfg):
     if plot_steps:
         plt.show()
 
-    # 5️⃣ (Optional) Z-score normalization
-    #eeg = zscore(eeg, axis=0)
+    # Z-score normalization
+    eeg = zscore(eeg, axis=0)
 
     trial.eeg_PP = eeg
     trial.fs_eeg = fs

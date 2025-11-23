@@ -1,9 +1,11 @@
 import os
-import yaml
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
+import yaml
 from scipy.signal import welch
 from scipy.stats import zscore, pearsonr
+
 
 def run_trial_diagnostics(subject_id, trial_index, fs=64, max_lag_ms=500, cfg_file="config.yaml"):
     """

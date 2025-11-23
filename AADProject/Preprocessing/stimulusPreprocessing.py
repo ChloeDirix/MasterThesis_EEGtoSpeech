@@ -1,15 +1,16 @@
 import os
+from pathlib import Path
 
 import librosa
 import numpy as np
 import yaml
-from gammatone.filters import erb_filterbank, make_erb_filters, centre_freqs
+from gammatone.filters import erb_filterbank, make_erb_filters
 from matplotlib import pyplot as plt
-
-
-from scipy.signal import hilbert, resample_poly, filtfilt, remez
 from mne.filter import filter_data
-from pathlib import Path
+from scipy.signal import hilbert, resample_poly, filtfilt, remez
+from scipy.stats import zscore
+
+from paths import paths
 
 
 ## filter functions ------------------------
@@ -51,12 +52,9 @@ def erbspacebw(f_low, f_high, spacing):
 def PreprocessAudioFiles(cfg):
 
     target_fs = int(cfg["target_fs"])
-    path = os.path.join(cfg["stim_dir"])
-    out_dir_env = os.path.join(cfg["Env_dir"])
-    os.makedirs(out_dir_env, exist_ok=True)
+    print(f"[Audio] Saving subband envelopes (.npz) to: {paths.ENVELOPES}")
 
-    print(f"[Audio] Saving subband envelopes (.npz) to: {out_dir_env}")
-    for stimulus in Path(path).iterdir():
+    for stimulus in Path(paths.STIM_DAS).iterdir():
         if stimulus.is_file() and stimulus.suffix.lower() == ".wav" and "_dry" in stimulus.stem:
             print(f"  - {stimulus.name}")
             audio, fs_audio = librosa.load(stimulus, sr=None, mono=True)
@@ -69,7 +67,8 @@ def PreprocessAudioFiles(cfg):
                 plot=False,
             )
 
-            out_path = os.path.join(out_dir_env, f"{stimulus.stem}_env.npz")
+
+            out_path = paths.envelope(f"{stimulus.stem}_env.npz")
             np.savez(
                 out_path,
                 envelope=env,  # (samples, bands)
@@ -103,8 +102,7 @@ def extract_envelope_das2019(audio, fs_audio, target_fs=32, hp_cutoff=1, lp_cuto
     subbands = subbands.T  # (samples, bands)
 
 
-    # 3) Powerlaw "envelopes": |subband|^power
-    #env = np.abs(subbands) ** power  # (samples, bands)
+    # 3) Powerlaw "envelopes"
     env = np.maximum(subbands, 0) ** power
 
     # 7) Subband weights: all ones (Das2019)
@@ -121,9 +119,10 @@ def extract_envelope_das2019(audio, fs_audio, target_fs=32, hp_cutoff=1, lp_cuto
     # 6) Downsample to target fs
     env=resample_poly(env, target_fs, fs_env)
     fs_env=target_fs
-    # downsample_factor = fs_env // target_fs
-    # env = env[::downsample_factor, :]
-    # fs_env = target_fs
+
+    # 7) zscore
+    env=zscore(env, axis=0)
+
 
 
 
@@ -250,7 +249,7 @@ def plot_subband_envelopes(env, fs_env, num_bands=5, seconds=3):
 
 
 if __name__ == "__main__":
-    cfg = yaml.safe_load(open("../config.yaml", "r"))
+    cfg = paths.CONFIG_FILE
     PreprocessAudioFiles(cfg)
 
 

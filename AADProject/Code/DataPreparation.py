@@ -4,6 +4,8 @@ import numpy as np
 from pynwb import NWBHDF5IO
 from scipy.stats import zscore
 
+from paths import paths
+
 
 def getData(nwb_path,cfg, multiband):
 
@@ -29,8 +31,8 @@ def getData(nwb_path,cfg, multiband):
             stimL_base = os.path.splitext(stimL_name)[0]   # Remove .wav or any extension
             stimR_base = os.path.splitext(stimR_name)[0]
 
-            npzL = np.load(os.path.join(cfg["Env_dir"], f"{stimL_base}_env.npz"))
-            npzR = np.load(os.path.join(cfg["Env_dir"], f"{stimR_base}_env.npz"))
+            npzL = np.load(paths.envelope(f"{stimL_base}_env.npz"))
+            npzR = np.load(paths.envelope(f"{stimR_base}_env.npz"))
 
             envL_sub = npzL["envelope"]  # envelopes (samples, bands)
             envR_sub = npzR["envelope"]

@@ -1,9 +1,9 @@
 import os
 
+from AADProject.Code.MatlabHelper import get_field, find_trials
+from AADProject.NotInUse.Trial import Trial
 from scipy.io import loadmat
 
-from AADProject.NotInUse.Trial import Trial
-from AADProject.Code.MatlabHelper import get_field, find_trials
 
 class LoadSubject:
     def __init__(self,subject_id, cfg):

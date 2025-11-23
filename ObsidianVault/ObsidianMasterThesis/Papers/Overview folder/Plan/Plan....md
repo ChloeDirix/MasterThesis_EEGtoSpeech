@@ -22,11 +22,6 @@ Goal: Generalising across completely different datasets
 - leave one subject out: test on unseen subject 
 - leave one-dataset out: test on unseen recording setup
 
-### 4. **Data augmentation**
-e.g: 
-- add noise to improve robustness
-- channel dropout (simulate missing electrodes)
-- time-shift audio ±100–300 ms (within plausible latencies) to avoid overfitting to a single alignment.
 
 ---
 

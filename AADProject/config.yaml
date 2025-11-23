@@ -10,19 +10,6 @@
 #  - EEG_PP:contains preprocessed EEGData in .nwb format
 #
 # Results_dir: contains final classification accuracies, correlations, and plots.
-
-
-base_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject"
-
-RawEEG_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/Data_Das2019/EEGData"
-stim_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/Data_Das2019/stimuli"
-
-Env_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/Data_InputModel/Envelopes"
-EEG_PP_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/Data_InputModel/EEG_PP"
-
-Results_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/Results"
-
-
 # Preprocessing config ---------------------------
 
 #target_fs:
@@ -36,7 +23,7 @@ Results_dir: "C:/Users/lilou/OneDrive/Documenten/thesis/AADProject/Results"
 
 target_fs: 32   #Hz -- min 18Hz
 band: [1, 9]    #Hz
-rereference_method: "Cz"
+rereference_method: "mean"
 
 plot_seconds: 30  #s
 plot_EEGPP_steps: False
@@ -63,9 +50,9 @@ multiband: True
 
 
 # What steps do you want to do? ---------------------------
-Do_envelope_extraction: False
+Do_envelope_extraction: True
 Do_preprocessing: True
-Do_BackwardModel: True
+Do_BackwardModel: False
 
 
 # Subjects to process ---------------------------
@@ -88,8 +75,33 @@ subjects:
   - S16
 
 
+##Deep learning section:
+DeepLearning:
+  use_gpu: true
+  window_len_s: 5.0
+  window_step_s: 2.5
+  batch_size: 32
+  num_epochs: 30
+  learning_rate: 1e-3
+  weight_decay: 1e-4
+  patience: 5
+  eeg_encoder:
+    d_model: 64
+    n_heads: 4
+    n_layers: 4
+  audio_encoder:
+    d_model: 64
+    n_heads: 4
+    n_layers: 2
+  contrastive:
+    temperature: 0.07
 
+train_subjects:
+  - S1
+  - S2
 
+val_subjects:
+  - S3
 
 
 

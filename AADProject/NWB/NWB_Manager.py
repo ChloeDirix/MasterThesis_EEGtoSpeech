@@ -1,8 +1,10 @@
 # NWB/NWB_Manager.py
+from datetime import datetime
+
 import numpy as np
 from pynwb import NWBFile, NWBHDF5IO, TimeSeries, ProcessingModule
-from datetime import datetime
 from pynwb.ecephys import ElectricalSeries
+
 
 class NWBManager:
     def save_subject(self, subject, out_path: str):

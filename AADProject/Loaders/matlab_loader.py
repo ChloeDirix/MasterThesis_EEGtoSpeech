@@ -1,7 +1,9 @@
 # loaders/matlab_loader.py
-from scipy.io import loadmat
-from Loaders.DataModels import Subject, Trial
 import numpy as np
+from scipy.io import loadmat
+
+from Loaders.DataModels import Subject, Trial
+
 
 class MatlabSubjectLoader:
     def __init__(self, mat_path: str, subject_id: str):

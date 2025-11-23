@@ -1,9 +1,9 @@
 # evaluate_results.py
-import numpy as np
-from scipy import stats
-import matplotlib.pyplot as plt
 import random
 
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy import stats
 from scipy.stats import binomtest
 
 
@@ -23,7 +23,6 @@ def SummaryStats(r_att, r_unatt):
     tstat, pval = stats.ttest_rel(r_att, r_unatt, nan_policy='omit')
     print(f"Paired t-test r_att vs r_unatt: t={tstat:.3f}, p={pval:.3e}")
     # binomial test vs chance (50%)
-    from statsmodels.stats.proportion import proportion_confint, binom_test
     n_correct = np.sum(r_att > r_unatt)
     n_total = len(r_att)
     p_binom = binomtest(n_correct, n_total, p=0.5, alternative='greater').pvalue

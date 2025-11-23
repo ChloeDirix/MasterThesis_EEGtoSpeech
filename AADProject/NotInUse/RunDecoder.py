@@ -1,6 +1,6 @@
 import os
-import numpy as np
 
+import numpy as np
 from AADProject.Code.BackwardModel import evaluate_model, train_backward_model
 
 

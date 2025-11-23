@@ -1,19 +1,20 @@
-import os
-import json
 import csv
+import json
+import os
+
 import numpy as np
 import yaml
 from pynwb import NWBHDF5IO
 
+from Code import RunBackwardModel, summaryStats
 from Loaders.matlab_loader import MatlabSubjectLoader
 from NWB.NWB_Manager import NWBManager
-from Code import RunBackwardModel, summaryStats
 from Preprocessing import stimulusPreprocessing, EEGPreprocessing
-
+from paths import paths
 
 def main():
     # === 1. Load configuration ===
-    cfg = yaml.safe_load(open("config.yaml", "r"))
+    cfg= paths.load_config()
 
     # What steps?
     envelope_extraction=cfg["Do_envelope_extraction"]
@@ -22,25 +23,25 @@ def main():
 
     # find paths to subject files
     subjects = cfg["subjects"]
-    RawEEG_dir=cfg["RawEEG_dir"]
 
-    # Define dir for preprocessed data
-    EEG_PP_dir = cfg["EEG_PP_dir"]
-    os.makedirs(EEG_PP_dir, exist_ok=True)
+
+    # 2. == Make output directories ==
+    os.makedirs(paths.EEG_PP, exist_ok=True)
+    os.makedirs(paths.ENVELOPES, exist_ok=True)
+    os.makedirs(paths.RESULTS, exist_ok=True)
+
+
     nwb_mgr = NWBManager()
     all_results = []
 
-    # Define results dir
-    results_dir=cfg["Results_dir"]
 
     if envelope_extraction:
         stimulusPreprocessing.PreprocessAudioFiles(cfg)
 
     # === 2. Loop over subjects_id (in cfg) ===
     for subject_id in subjects:
-
-        subject_file_in = os.path.join(RawEEG_dir, f"{subject_id}.mat")  # .mat data
-        subject_file_out = os.path.join(EEG_PP_dir, f"{subject_id}.nwb")  # .nwb data
+        subject_file_in = paths.subject_raw(subject_id)
+        subject_file_out = paths.subject_eegPP(subject_id)
 
        # Preprocessing
         if EEG_preprocessing:
@@ -64,9 +65,8 @@ def main():
             print(nwbfile.processing)
             print(list(nwbfile.trials.columns))
             print(nwbfile.trials[:5])
-            elec_df = nwbfile.electrodes.to_dataframe()
-            channel_names = list(elec_df['label'])
-            print("cahnnelnames-- ",channel_names)
+
+
 
         if BackwardModel:
             # 2d. Run backward model (mTRF)
@@ -75,10 +75,10 @@ def main():
 
     # === 3. Summarize results ===
     if BackwardModel:
-        summarize_results(all_results, results_dir)
+        summarize_results(all_results,cfg)
 
 
-def summarize_results(results, output_dir):
+def summarize_results(results,cfg):
     """Aggregate and save all subject-level results."""
     if not results:
         print("No usable results, skipping summary.")
@@ -93,13 +93,13 @@ def summarize_results(results, output_dir):
     print(f"Mean windowed accuracy:  {np.mean(win_accs):.2f}")
 
     # JSON export
-    json_path = os.path.join(output_dir, "mTRF_results_mean.json")
+    json_path = paths.result_file(f"mTRF_results_{cfg["rereference_method"]}.json")
     with open(json_path, "w") as f:
         json.dump(results, f, indent=4)
     print(f"Saved results to {json_path}")
 
     # CSV summary
-    csv_path = os.path.join(output_dir, "mTRF_summary_mean.csv")
+    csv_path = paths.result_file(f"mTRF_summary_{cfg["rereference_method"]}.csv")
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Subject_ID", "Full_Trial_Accuracy", "Windowed_Accuracy"])
@@ -112,10 +112,10 @@ def summarize_results(results, output_dir):
     all_unatt = np.concatenate([np.array([t["corr_unatt"] for t in subj["results"]]) for subj in results])
     stats=summaryStats.SummaryStats(all_att, all_unatt)
 
-    with open(os.path.join(output_dir, "statsmean.json"), "w") as f:
+    with open(paths.result_file(f"stats_{cfg["rereference_method"]}.json"), "w") as f:
         json.dump(stats, f, indent=4)
 
-    summaryStats.plot_histograms(all_att, all_unatt, os.path.join(output_dir, "Histogram_mean"))
+    summaryStats.plot_histograms(all_att, all_unatt, paths.result_file(f"Histogram_{cfg["rereference_method"]}"))
 
 
 if __name__ == "__main__":
