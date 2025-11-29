@@ -24,6 +24,7 @@ class paths:
     EEG_PP = DATA_INPUT_MODEL / "EEG_PP"
 
     RESULTS = ROOT / "Results"
+    RESULTS_DL= ROOT / "Results_DL_Transformer"
 
     # Config file
     CONFIG_FILE = ROOT / "config.yaml"

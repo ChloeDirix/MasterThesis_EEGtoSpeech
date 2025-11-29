@@ -7,7 +7,7 @@ from SelectiveAAD.models.ccn_encoders import EEGEncoder_CNN, AudioEncoder_CNN
 
 class ContrastiveAADModel_CNN(nn.Module):
     """
-    Fast CPU-friendly contrastive AAD with CNN encoders.
+    Fast contrastive AAD with CNN encoders.
     """
     def __init__(self, eeg_input_dim, stim_input_dim, d_model=32, temperature=0.1):
         super().__init__()
@@ -26,6 +26,11 @@ class ContrastiveAADModel_CNN(nn.Module):
             d_model=d_model,
             dropout=0.2
         )
+
+    def get_embeddings(self, eeg, stim):
+        z_eeg = self.eeg_encoder(eeg)
+        z_stim = self.audio_encoder(stim)
+        return z_eeg, z_stim
 
     def forward(self, eeg, stimuli):
         """

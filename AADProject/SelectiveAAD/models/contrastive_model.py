@@ -28,17 +28,11 @@ class ContrastiveAADModel(nn.Module):
     Stim input:   [B, K, T, C_stim]
     Output:       logits [B, K]
     """
-    def __init__(self,
-                 eeg_input_dim,
-                 stim_input_dim,
-                 d_model=64,
-                 n_eeg_layers=4,
-                 n_stim_layers=2,
-                 n_heads=4,
-                 temperature=0.07):
+    def __init__(self, eeg_input_dim, stim_input_dim, d_model=64, n_eeg_layers=4, n_stim_layers=2, n_heads=4, temperature=0.07):
         super().__init__()
 
         self.temperature = temperature
+        self.scale = 1.0 / temperature
 
         # Create encoders
         self.eeg_encoder = EEGEncoder(
@@ -55,7 +49,12 @@ class ContrastiveAADModel(nn.Module):
             n_heads=n_heads
         )
 
-        self.scale = 1.0 / temperature
+
+
+    def get_embeddings(self, eeg, stim):
+        z_eeg = self.eeg_encoder(eeg)
+        z_stim = self.audio_encoder(stim)
+        return z_eeg, z_stim
 
     def forward(self, eeg, stimuli):
         """
@@ -66,20 +65,26 @@ class ContrastiveAADModel(nn.Module):
         B, K, T, C = stimuli.shape
 
         # ---- Encode EEG ----
-        z_eeg = self.eeg_encoder(eeg)            # [B, D]
+        z_eeg = self.eeg_encoder(eeg)            # [B, d_model]
 
         # ---- Encode stimuli ----
         stim_flat = stimuli.reshape(B * K, T, C)  # [B*K, T, C]
-        z_stim = self.audio_encoder(stim_flat)    # [B*K, D]
-        z_stim = z_stim.reshape(B, K, -1)         # [B, K, D]
+        z_stim = self.audio_encoder(stim_flat)    # [B*K, d_model]
+        z_stim = z_stim.reshape(B, K, -1)         # [B, K, d_model]
+                                                  # z_stim[b][0] = embedding of matched stimulus
+                                                  # z_stim[b][1] = embedding of mismatched stimulus
 
         # ---- Cosine similarities ----
         z_eeg_norm = F.normalize(z_eeg, dim=-1)
         z_stim_norm = F.normalize(z_stim, dim=-1)
 
-        logits = (z_eeg_norm.unsqueeze(1) * z_stim_norm).sum(dim=-1)  # [B, K]
+        logits = (z_eeg_norm.unsqueeze(1) * z_stim_norm).sum(dim=-1)  # dot product
+                    # z_eeg_norm.unsqueeeze(1) : dim becomes: [B, 1, D]
+                    # * is an elementwise multiplication: [B, K, D]
+                    # sum over features: [B,K]
 
-        logits = logits * self.scale
+        logits = logits * self.scale    # scale=1/temperature: improves contrast
+
         return logits
 
 
@@ -89,7 +94,7 @@ if __name__ == "__main__":
     cfg = paths.load_config()
     nwb_paths = [paths.subject_eegPP("S1")]
 
-    ds = datasets.SelectiveAADDataset(nwb_paths, cfg, multiband=True)
+    ds = datasets.AADDataset(nwb_paths, cfg, multiband=True)
     loader = datasets.DataLoader(ds, batch_size=4, shuffle=True)
 
     eeg, stim, att = next(iter(loader))

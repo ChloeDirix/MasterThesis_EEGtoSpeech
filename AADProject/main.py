@@ -22,7 +22,7 @@ def main():
     BackwardModel = cfg["Do_BackwardModel"]
 
     # find paths to subject files
-    subjects = cfg["subjects"]
+    subjects = cfg["subjects"]["all"]
 
 
     # 2. == Make output directories ==

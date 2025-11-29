@@ -23,7 +23,7 @@
 
 target_fs: 32   #Hz -- min 18Hz
 band: [1, 9]    #Hz
-rereference_method: "mean"
+rereference_method: "Cz"
 
 plot_seconds: 30  #s
 plot_EEGPP_steps: False
@@ -56,43 +56,32 @@ Do_BackwardModel: False
 
 
 # Subjects to process ---------------------------
+use_subjects: "small"
 subjects:
-  - S1
-  - S2
-  - S3
-  - S4
-  - S5
-  - S6
-  - S7
-  - S8
-  - S9
-  - S10
-  - S11
-  - S12
-  - S13
-  - S14
-  - S15
-  - S16
-
+  all: [S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16]
+  small: [S1,S2,S3,S4,S5,S6]
+  debug: [S1]
 
 ##Deep learning section:
 DeepLearning:
-  use_gpu: true
+  quick_test: False
+  use_gpu: False
+  use_loso: true
   window_len_s: 5.0
   window_step_s: 2.5
-  batch_size: 32
-  num_epochs: 30
-  learning_rate: 1e-3
+  batch_size: 8
+  num_epochs: 20
+  learning_rate: 3e-4
   weight_decay: 1e-4
-  patience: 5
+  patience: 8
   eeg_encoder:
     d_model: 64
     n_heads: 4
-    n_layers: 4
+    n_layers: 3
   audio_encoder:
     d_model: 64
     n_heads: 4
-    n_layers: 2
+    n_layers: 1
   contrastive:
     temperature: 0.07
 
