@@ -4,13 +4,13 @@ Entrainment is general, but **speech comprehension modulates its strength**
 
 **Timeline:**
 
-| Year     | Study                    | title                                                                                            | Main Contribution                                                                          |
-| -------- | ------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| 1953     | Cherry                   | /                                                                                                | the **“cocktail-party problem”**.                                                          |
-| 2012     | Ding & Simon             | Emergence of neural encoding of auditory objects while listening to competing speakers           | there is cortical entrainment                                                              |
-| **2012** | Ding & Simon             | Cortical entrainment to continuous speech: functional roles and interpretations                  | function of cortical entrainment: a few hypotheses                                         |
-| **2014** | O’Sullivan et al.        | Attentional Selection in a Cocktail Party Environment Can Be Decoded from Single-Trial EEG       | first backward model                                                                       |
-| **2014** | Ding, Chatterjee & Simon | Robust Cortical Entrainment to the Speech Envelope Relies on the Spectro-temporal Fine Structure | Cortical entrainment relies on **spectro-temporal fine structure**, not just the envelope. |
+| Year     | Study                    | title                                                                                            | Main Contribution                                                                           |
+| -------- | ------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| 1953     | Cherry                   | /                                                                                                | the **“cocktail-party problem”**.                                                           |
+| 2012     | Ding & Simon             | Emergence of neural encoding of auditory objects while listening to competing speakers           | there is cortical entrainment                                                               |
+| **2012** | Ding & Simon             | Cortical entrainment to continuous speech: functional roles and interpretations                  | function of cortical entrainment: a few hypotheses                                          |
+| **2014** | O’Sullivan et al.        | Attentional Selection in a Cocktail Party Environment Can Be Decoded from Single-Trial EEG       | first backward model                                                                        |
+| **2014** | Ding, Chatterjee & Simon | Robust Cortical Entrainment to the Speech Envelope Relies on the Spectro-temporal Fine Structure | Cortical entrainment relies on **spectro-temporal fine structure**, not just the envelope.  |
 
 
 # O'Sullivan et al
@@ -75,17 +75,30 @@ No, but for speech, entrainment is modulated by attention and comprehension, mak
 **Core questions:**
 Does robust cortical entrainment in noise reflect simple envelope tracking or an **object-level representation** relying on spectro-temporal fine structure?
 
+**what is fine structure?**
+speech=envelope+fine structure
+	envelope: slow part (<16Hz) 
+			- amplitude fluctuations
+			- syllable rythm and stress
+	fine structure: fast part (100 - 4000 Hz)
+			- pitch
+			- harmonics
+			- formants
+			- spectral detail
+			- timbre
+			- rapid transitions
+
 **Methodology:**
 - **Stimuli:** Natural speech vs. noise-vocoded speech (envelope preserved, fine structure degraded).
 - **Measurement:** MEG/EEG tracking of cortical responses (delta/theta bands, TRFs).
 
-**Main findings:**
 
+**Main findings:**
 **1. Spectro-temporal fine structure is critical**
 - Natural speech: robust entrainment in noise.
 - Vocoded speech: entrainment degraded, even with envelope intact.
 Envelope tracking alone is not sufficient for noise-robust representations
-    
+**fine structure helps the brain separate sounds, without it the auditory object cannot form as there is no comprehension**
 
 **2. Delta-band entrainment predicts intelligibility:**
 Reflects **object-level speech representation**, linked to comprehension

@@ -106,4 +106,3 @@ class NWBManager:
         # 5️⃣ Write to disk
         with NWBHDF5IO(out_path, "w") as io:
             io.write(nwb)
-        print(f"✅ NWB file written for subject {subject.subject_id} -> {out_path}")

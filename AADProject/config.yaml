@@ -1,96 +1,94 @@
-# Directory Paths ---------------------------
-
-# base_dir: Path to the root folder of the whole project, containing everything.
-# Data_Das2019
-#  - RawEEG_dir=Location of the raw EEG files.
-#  - stim_dir: Folder with audio stimuli (.wav) used in the attention experiment.
-#
-# Data_ModelInput
-#  - Env_dir: contains envelopes of the corresponding stimuli
-#  - EEG_PP:contains preprocessed EEGData in .nwb format
-#
-# Results_dir: contains final classification accuracies, correlations, and plots.
-# Preprocessing config ---------------------------
-
-#target_fs:
-#  frequency to which eeg and envelopes are downsampled. This dramatically reduces data size
-#  Can be 2 times the bandwidth at its lowest (2 FN)
-#band:
-#  Speech envelope tracking (cortical entrainment) occurs primarily in the delta (0.5–4 Hz) and theta (4–8 Hz) ranges
-#  Filter out noise while keeping most relevant envelope information
-#plot:
-#  plot 30s chuncks of EEG/envelopes for visual inspection
-
-target_fs: 32   #Hz -- min 18Hz
-band: [1, 9]    #Hz
-rereference_method: "Cz"
-
-plot_seconds: 30  #s
-plot_EEGPP_steps: False
-plot_EnvelopeExtr: False
-
-# backward model ---------------------------
-#Decision_window:
-#  model evaluates on 30s windows
-#  trade off between longer windows (higher accuracy) & shorter windows (less decision time)
-#
-#Decision_step:
-#  overlapping windows: 30s window slides by 1s
-#  why?
-#
-#lag_ms:
-#  defines temporal integration window over the mTRF
-#  - cortical responses ~100ms
-#  - use longer windows to capture more complex relations + artefact calibration
-
-decision_window: 30  #s
-decision_step: 1     #s
-lag_ms: [-100, 400]  #ms
-multiband: True
 
 
-# What steps do you want to do? ---------------------------
+# ============================================================
+# 1. Preprocessing stages
+# ============================================================
 Do_envelope_extraction: True
 Do_preprocessing: True
-Do_BackwardModel: False
 
 
-# Subjects to process ---------------------------
-use_subjects: "small"
+
+# ============================================================
+# 2. Subject selection
+# ============================================================
 subjects:
   all: [S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16]
-  small: [S1,S2,S3,S4,S5,S6]
-  debug: [S1]
+  medium: [S1,S2,S3,S4,S5,S6]
+  small: [S1,S2]
+use_subjects: "medium"
 
-##Deep learning section:
+
+splits:
+  mode: "single"     # "single" | "loso"
+  single:
+    train: [S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16]
+    val: [S1]
+
+
+# ============================================================
+# 3. Preprocessing settings
+# ============================================================
+preprocessing:
+  target_fs: 32   #Hz -- min 18Hz
+  band: [1, 9]    #Hz
+  rereference_method: "Cz"
+  plotting:
+    enable: false
+    seconds: 30
+    show_preprocessing_steps: False
+
+
+
+# ============================================================
+# 4. Backward model (mTRF) settings
+# ============================================================
+backward_model:
+  window_s: 30
+  step_s: 1
+  lag_ms: [-100, 400]
+  multiband: true
+
+
+# ============================================================
+# 5. Deep Learning section
+# ============================================================
+
+# DLModel Parameters -----------------------------------------------
 DeepLearning:
-  quick_test: False
-  use_gpu: False
-  use_loso: true
-  window_len_s: 5.0
-  window_step_s: 2.5
-  batch_size: 8
-  num_epochs: 20
-  learning_rate: 3e-4
-  weight_decay: 1e-4
-  patience: 8
-  eeg_encoder:
-    d_model: 64
-    n_heads: 4
-    n_layers: 3
-  audio_encoder:
-    d_model: 64
-    n_heads: 4
-    n_layers: 1
-  contrastive:
-    temperature: 0.07
+  data_windows:
+    window_len_s: 5.0
+    window_step_s: 2.5
 
-train_subjects:
-  - S1
-  - S2
+  train:
+    batch_size: 8
+    num_epochs: 20
+    learning_rate: 3e-4
+    weight_decay: 1e-4
+    patience: 8
 
-val_subjects:
-  - S3
+  model:
+    architecture: "w_transformer"   #or wo_transformer
+    eeg_encoder:
+      d_model: 64
+      n_heads: 4
+      n_layers: 3
+    audio_encoder:
+      d_model: 64
+      n_heads: 4
+      n_layers: 1
+    contrastive:
+      temperature: 0.07
+
+  quick_test:
+    enable: False
+    max_windows: 200
+    max_epochs: 3
+    use_subjects: "debug"
+
+
+
+
+
 
 
 

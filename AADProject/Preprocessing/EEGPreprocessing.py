@@ -22,6 +22,9 @@ def rereference(eeg, method="Cz"):
         eeg_reref = eeg - ref
         return eeg_reref
 
+    # ---------- remove zero-variance channels --
+    eeg = eeg[:, np.std(eeg, axis=0) > 0]
+
     return eeg
 
 
@@ -65,12 +68,12 @@ def preprocess_trial(trial, cfg):
 
     eeg = trial.eeg_raw
     fs = trial.fs_eeg
-    target_fs = cfg["target_fs"]
+    target_fs = cfg["preprocessing"]["target_fs"]
 
-    band = cfg["band"]
+    band = cfg["preprocessing"]["band"]
     HP, LP = band
-    plot_steps = cfg["plot_EEGPP_steps"]
-    plot_seconds = cfg["plot_seconds"]
+    plot_steps = cfg["preprocessing"]["plotting"]["show_preprocessing_steps"]
+    plot_seconds = cfg["preprocessing"]["plotting"]["seconds"]
 
     # For plotting
     if plot_steps:
@@ -83,7 +86,7 @@ def preprocess_trial(trial, cfg):
         axs[0].set_title("Raw EEG")
 
     # 1️⃣ Re-reference
-    eeg = rereference(eeg, cfg["rereference_method"])
+    eeg = rereference(eeg, cfg["preprocessing"]["rereference_method"])
     if plot_steps:
         axs[1].plot(t, eeg[:nplot, ch])
         axs[1].set_title("After rereferencing")
@@ -120,10 +123,6 @@ def preprocess_trial(trial, cfg):
 
     # Z-score normalization
     eeg = zscore(eeg, axis=0)
-
-    trial.eeg_PP = eeg
-    trial.fs_eeg = fs
-    trial.metadata["preprocessed"] = True
 
     return eeg, fs
 

@@ -15,7 +15,6 @@ class MatlabSubjectLoader:
         raw_trials = self.find_trials(self.mat)
         trials = []
         for i, raw_trial in enumerate(raw_trials, start=1):
-            print(f"\n--- Trial {i} ---")
             trial = self._parse_trial(raw_trial, i)
             if trial.validate():
                 trials.append(trial)
@@ -112,21 +111,18 @@ class MatlabSubjectLoader:
         """
 
         if hasattr(obj, name):  # if stored as attribute
-            # print("obj is attribute")
             return getattr(obj, name)
 
         if isinstance(obj, dict) and name in obj:  # if stored as dict
-            print("obj is dict")
+
             return obj[name]
 
         if isinstance(obj, np.ndarray) and obj.dtype.names:  # if stored as structured NumPy arrays
             val = obj[name]
             if isinstance(val, np.ndarray) and val.size == 1:  # if stored inside array
-                print("obj is NumpyArray")
                 return val.item()
             return val
         if isinstance(obj, np.ndarray):  # if stored in single python object wrapped in another array
-            print("obj is wrapped in NumpyArray")
             for el in obj.flatten():
                 try:
                     v = self.get_field(el, name)

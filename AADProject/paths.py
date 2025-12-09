@@ -23,11 +23,11 @@ class paths:
     ENVELOPES = DATA_INPUT_MODEL / "Envelopes"
     EEG_PP = DATA_INPUT_MODEL / "EEG_PP"
 
-    RESULTS = ROOT / "Results"
-    RESULTS_DL= ROOT / "Results_DL_Transformer"
-
     # Config file
     CONFIG_FILE = ROOT / "config.yaml"
+
+    RESULTS_LIN = ROOT / "Results_Lin"
+    RESULTS_DL = ROOT / "Results_DL"
 
     # --------------------
     # Helper methods
@@ -38,7 +38,6 @@ class paths:
         """Load config.yaml as a dictionary."""
         with paths.CONFIG_FILE.open("r") as f:
             return yaml.safe_load(f)
-
 
 
     @staticmethod
@@ -56,6 +55,7 @@ class paths:
             subj_path = paths.subject_eegPP(subject)
             subj_paths.append(subj_path)
         return subj_paths
+
     @staticmethod
     def subject_raw(subject_id: str):
         """Path to raw EEG file."""
@@ -72,9 +72,17 @@ class paths:
         return paths.STIM_DAS / filename
 
     @staticmethod
-    def result_file(name: str):
+    def result_file_lin(name: str):
         """Result file inside Results directory."""
-        return paths.RESULTS / name
+        return paths.RESULTS_LIN / name
+
+    @staticmethod
+    def result_file_DL(cfg):
+        if cfg["DeepLearning"]["model"]["architecture"]=="wo_transformer":
+            return paths.RESULTS_DL
+        else:
+            return f"{paths.RESULTS_DL}_Transformer"
+
 
     @staticmethod
     def custom(*relative_parts):

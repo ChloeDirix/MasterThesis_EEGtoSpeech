@@ -1,9 +1,7 @@
-import os
 from pathlib import Path
 
 import librosa
 import numpy as np
-import yaml
 from gammatone.filters import erb_filterbank, make_erb_filters
 from matplotlib import pyplot as plt
 from mne.filter import filter_data
@@ -51,7 +49,7 @@ def erbspacebw(f_low, f_high, spacing):
 ## actual code --------------------
 def PreprocessAudioFiles(cfg):
 
-    target_fs = int(cfg["target_fs"])
+    target_fs = int(cfg["preprocessing"]["target_fs"])
     print(f"[Audio] Saving subband envelopes (.npz) to: {paths.ENVELOPES}")
 
     for stimulus in Path(paths.STIM_DAS).iterdir():
@@ -62,8 +60,8 @@ def PreprocessAudioFiles(cfg):
                 audio,
                 fs_audio,
                 target_fs=target_fs,
-                hp_cutoff=cfg["band"][0],
-                lp_cutoff=cfg["band"][1],
+                hp_cutoff=cfg["preprocessing"]["band"][0],
+                lp_cutoff=cfg["preprocessing"]["band"][1],
                 plot=False,
             )
 
