@@ -20,6 +20,7 @@ Understanding neural mechanisms of auditory processing by decoding of continuous
 - linear regression: 
 		+ good for speech intelligibility
 		- problems due to low signal to noise ratio
+		- brain is non-linear
 - *ANNs* = artificial neural networks
 		+ includes speech denoising
 		+ includes signal enhancement

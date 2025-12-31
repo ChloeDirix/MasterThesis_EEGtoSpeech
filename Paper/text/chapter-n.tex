@@ -1,20 +1,106 @@
-\chapter{The Final Chapter}
-\label{cha:n}
+\chapter{the Loss Function}
+\label{loss}
 
 
-\section{The First Topic of this Chapter}
-\subsection{Item 1}
-\subsubsection{Sub-item 1}
+% commands
+\newcommand{\eeg}{\mathbf{e}}
+\newcommand{\att}{\mathbf{sa}}
+\newcommand{\unatt}{\mathbf{su}}
+\newcommand{\sima}[2]{\mathrm{sim}\bigl(\mathbf{\eeg}_{#1}, \mathbf{\att}_{#2}\bigr)}
+\newcommand{\simu}[2]{\mathrm{sim}\bigl(\mathbf{\eeg}_{#1}, \mathbf{\unatt}_{#2}\bigr)}
 
 
-\subsubsection{Sub-item 2}
+% text
+Embeddings are represented as: 
+\begin{align*}
+\eeg_i &\in \mathbb{R}^D \quad \text{(EEG embedding)}\\
+\att_i &\in \mathbb{R}^D \quad \text{(attended speech embedding)}\\
+\unatt_i &\in \mathbb{R}^D \quad \text{(unattended speech embedding)}
+\end{align*}
 
+\subsubsection*{Step 1: compute the similarity matrix}
+To compare the embeddings in the latent space the measure of similarity is used. The similarity between two embeddings is defined as their inner product divided by a learnable temperature parameter $\tau$.
 
-\subsection{Item 2}
+\[
+\mathrm{sim}(\mathbf{\eeg_i},\mathbf{s_i}) = \frac{<\mathbf{\eeg_i},\mathbf{s_i}>}{\tau}
+\]
 
+When computing all possible combinations, two matrices are created. $S_A$ contains the matches between the eeg embeddings and the attended speech embeddings. $S_U$ contains eeg-unattended speech combinations.
+\[
+S_A = \begin{bmatrix}
+\sima{0}{0} & \cdots & \sima{0}{N-1} \\
+\vdots & \ddots & \vdots\\
+\sima{N-1}{0} & \cdots & \sima{N-1}{N-1}
+\end{bmatrix}
+\]
+\[
+S_U = \begin{bmatrix}
+\simu{0}{0} & \cdots & \simu{0}{N-1} \\
+\vdots & \ddots & \vdots\\
+\simu{N-1}{0} & \cdots & \simu{N-1}{N-1}
+\end{bmatrix}
+\]
+\\
+The diagonal of $S_A$ corresponds to correctly aligned EEG–attended speech pairs.
+The diagonal of $S_U$ corresponds to aligned unattended speech, which is treated separately as a weak negative. Only $S_A$ is used in the CLIP loss computation. $S_U$ is excluded from the contrastive classification and is used solely in the weak-negative term. This means $S_U$ will in practice only need to be diagonal, as the rest of the combinations will not be used.
 
-\section{The Second Topic}
+\subsubsection*{Step 2: compute the softmax probabilities}
+For a given EEG embedding $\eeg_i$, the softmax probability $p_{e_i}$ measures how likely the attended speech $\att_i$ is relative to all other attended speech candidates in the batch. This formulation treats mismatched attended speech as contrastive negatives. 
+\[
+p_{e_i} =
+\frac{\exp(S_A(i,i))}
+{\sum_{j=1}^{B} \exp(S_A(i,j))}
+\]
+\\
 
+For symmetry, we also compute the probability that $\eeg_i$ is the correct EEG match for $\att_i$:
+\[
+p_{sa_i} =
+\frac{
+\exp\big(\mathrm{sim}(\att_i,\eeg_i)/\tau\big)
+}{
+\sum_{j=1}^{B}\exp\big(\mathrm{sim}(\att_i,\eeg_j)/\tau\big)
+}
+\]
 
-\section{Conclusion}
+\subsubsection*{Step 3: Compute the the symmetric CLIP loss}
+The loss is defined as:
+\[
+\mathcal{L}_{e} =
+-\frac{1}{B}\sum_{i=1}^{B}\log p_{e_i}
+\]
+
+\[
+\mathcal{L}_{sa} =
+-\frac{1}{B}\sum_{i=1}^{B}\log p_{sa_i}
+\]
+
+\[
+\mathcal{L}_{CLIP} = \frac{1}{2}\Bigl(
+\mathcal{L}_{e}+
+\mathcal{L}_{sa}
+\Bigr)
+\]
+
+\subsubsection*{Step 4: Introducing the weak negative}
+The temporally aligned unattended speech is treated as a weak negative using a margin ranking term. This margin-based term enforces that the EEG embedding is more similar to the attended speech than to the temporally aligned unattended speech by at least a margin $m$.
+Unlike the CLIP loss, this term does not force unattended speech to be far from the EEG embedding, but only enforces a relative ordering, reflecting partial neural tracking of unattended speech.
+
+\[
+\mathcal{L}_{\mathrm{weak}} =
+\frac{1}{B}\sum_{i=1}^{B}
+\max\Bigl(0,\;
+m - \bigl(\sima{i}{i}-\simu{i}{i}\bigr)
+\Bigr).
+\]
+
+Finally, the total loss is:
+\[
+\mathcal{L}_{\mathrm{total}} =
+\mathcal{L}_{CLIP}
++
+\lambda \mathcal{L}_{\mathrm{weak}}
+\]
+
+In summary, the symmetric CLIP loss learns a shared embedding space by aligning EEG with attended speech using in-batch negatives, while the weak-negative term introduces task-specific structure by enforcing that attended speech is more similar to EEG than the temporally aligned unattended speech. This separation avoids treating unattended speech as a hard negative, which would contradict known neurophysiological evidence that EEG partially tracks both speech streams.
 

@@ -1,4 +1,5 @@
 # evaluate_results.py
+import os
 import random
 
 import matplotlib.pyplot as plt
@@ -30,6 +31,8 @@ def SummaryStats(r_att, r_unatt):
     return dict(mean_att=mean_att, mean_un=mean_un, acc=acc, t_p=pval, binom_p=p_binom)
 
 def plot_histograms(r_att, r_unatt, save_path):
+    os.makedirs(save_path, exist_ok=True)
+
     plt.figure(figsize=(7,4))
     plt.hist(r_att, bins=20, alpha=0.7, label='r_att')
     plt.hist(r_unatt, bins=20, alpha=0.7, label='r_unatt')
@@ -39,8 +42,8 @@ def plot_histograms(r_att, r_unatt, save_path):
     plt.tight_layout()
 
     if save_path is not None:
-        plt.savefig(save_path, dpi=300)
-        print(f"Histogram plot saved to: {save_path}")
+        plt.savefig(os.path.join(save_path, "Histogram"), dpi=300)
+        print(f"Histogram plot saved to: {os.path.join(save_path, "Histogram")}")
 
     plt.show()
 

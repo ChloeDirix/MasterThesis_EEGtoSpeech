@@ -65,7 +65,6 @@ def Load_data(nwb_path, merged=True, multiband=True):
         nwbfile = io.read()
         trials = nwbfile.trials.to_dataframe()
 
-        print(f"Loaded {len(trials)} trials from {nwb_path}")
 
         for _, tr in trials.iterrows():
             eeg, env_att, env_unatt = load_single_trial(nwbfile, tr, multiband)
@@ -74,7 +73,6 @@ def Load_data(nwb_path, merged=True, multiband=True):
     # ------------- Merge repetition trials for mTRF ----------
     if merged:
         data = merge_repetition_trials(trials, data)
-        print(f"Using merged trials: {len(data)}")
     else:
         print(f"Using raw (unmerged) trials: {len(data)}")
 

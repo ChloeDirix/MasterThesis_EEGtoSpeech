@@ -18,6 +18,8 @@ Process:
 
 import torch.nn as nn
 import torch.nn.functional as F
+from sympy.printing.pytorch import torch
+
 from DLModel.models.encoder import EEGEncoder, AudioEncoder
 
 
@@ -87,6 +89,49 @@ class ContrastiveAADModel(nn.Module):
 
         return logits
 
+
+    # ------------------------------------------------------
+    # contrastive loss function
+    # ------------------------------------------------------
+    def contrastive_loss(self, logits, att):
+        """
+        logits: [B, K]
+        att:    [B]  (0 or 1)
+        Implements 2-way InfoNCE = CE over similarities
+        """
+        return F.cross_entropy(logits, att)
+
+    #to check add symmetric CLIP and add negatives
+    #calssifying AAD Types
+
+    def clip_loss(self, z_eeg, z_stim):
+        """
+        z_eeg:  [B, D]
+        z_stim: [B, D]
+
+        Computes symmetric InfoNCE (CLIP) loss:
+          L = (L_eeg2stim + L_stim2eeg) / 2
+        """
+
+        # Normalize embeddings
+        z_eeg = F.normalize(z_eeg, dim=-1)  # [B, D]
+        z_stim = F.normalize(z_stim, dim=-1)  # [B, D]
+
+        # Similarity matrix: [B, B]
+        logits = (z_eeg @ z_stim.T) / self.temperature
+
+        B = logits.size(0)
+        labels = torch.arange(B, device=logits.device)
+
+        # EEG → Stim loss: row i should match column i
+        loss_e2s = F.cross_entropy(logits, labels)
+
+        # Stim → EEG loss: match inverse direction
+        loss_s2e = F.cross_entropy(logits.T, labels)
+
+        # Symmetric CLIP loss
+        loss = (loss_e2s + loss_s2e) / 2
+        return loss
 
 if __name__ == "__main__":
     from DLModel import datasets

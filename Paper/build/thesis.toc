@@ -20,19 +20,12 @@
 \contentsline {section}{\numberline {3.1}The First Topic of this Chapter}{5}{section.3.1}%
 \contentsline {subsection}{\numberline {3.1.1}An item}{5}{subsection.3.1.1}%
 \contentsline {section}{\numberline {3.2}Figures}{5}{section.3.2}%
-\contentsline {section}{\numberline {3.3}Tables}{5}{section.3.3}%
+\contentsline {section}{\numberline {3.3}Tables}{6}{section.3.3}%
 \contentsline {section}{\numberline {3.4}Conclusion}{6}{section.3.4}%
-\contentsline {chapter}{\chapternumberline {4}The Final Chapter}{7}{chapter.4}%
-\contentsline {section}{\numberline {4.1}The First Topic of this Chapter}{7}{section.4.1}%
-\contentsline {subsection}{\numberline {4.1.1}Item 1}{7}{subsection.4.1.1}%
-\contentsline {subsubsection}{Sub-item 1}{7}{section*.16}%
-\contentsline {subsubsection}{Sub-item 2}{7}{section*.17}%
-\contentsline {subsection}{\numberline {4.1.2}Item 2}{7}{subsection.4.1.2}%
-\contentsline {section}{\numberline {4.2}The Second Topic}{7}{section.4.2}%
-\contentsline {section}{\numberline {4.3}Conclusion}{7}{section.4.3}%
+\contentsline {chapter}{\chapternumberline {4}the Loss Function}{7}{chapter.4}%
 \contentsline {chapter}{\chapternumberline {5}Conclusion}{9}{chapter.5}%
 \contentsline {appendix}{\chapternumberline {A}The First Appendix}{13}{appendix.A}%
 \contentsline {section}{\numberline {A.1}First appendix}{13}{section.A.1}%
 \contentsline {appendix}{\chapternumberline {B}The Last Appendix}{15}{appendix.B}%
-\contentsline {chapter}{Bibliography}{17}{chapter*.19}%
-\contentsline {chapter}{Code of Conduct}{18}{chapter*.21}%
+\contentsline {chapter}{Bibliography}{17}{chapter*.21}%
+\contentsline {chapter}{Code of Conduct}{18}{chapter*.23}%

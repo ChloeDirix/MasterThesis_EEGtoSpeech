@@ -8,6 +8,13 @@ import DataPreparation
 from BackwardModel import summaryStats
 from paths import paths
 
+from BackwardModel.plots import (
+    plot_subject_bars,
+    plot_correlation_distributions,
+    plot_window_length_curve,
+    plot_trf_weights,
+    plot_window_heatmap,
+)
 
 def create_lag_matrix(EEG, lags_t, fs):
     """
@@ -110,7 +117,7 @@ def run_mTRF_subject(train_paths, test_path, cfg):
     tr_paths = train_paths[:-n_val]
 
     # Load 1 subject to determine feature dimension
-    X_first, y_first = load_subject_block(tr_paths[0])
+    X_first, y_first = load_subject_block(tr_paths[0],lags, fs, multiband)
     n_features = X_first.shape[1]
 
     XtX = np.zeros((n_features, n_features))
@@ -126,7 +133,7 @@ def run_mTRF_subject(train_paths, test_path, cfg):
 
     # Add Remaining subjects
     for p in tr_paths[1:]:
-        Xs, ys = load_subject_block(p)
+        Xs, ys = load_subject_block(p,lags, fs, multiband)
         XtX += Xs.T @ Xs
         XtY += Xs.T @ ys
 
@@ -138,7 +145,7 @@ def run_mTRF_subject(train_paths, test_path, cfg):
     best_score = -np.inf        #negative infinity, so the first value is always better
 
     # Preload validation subjects
-    val_blocks = [load_subject_block(p) for p in val_paths]
+    val_blocks = [load_subject_block(p,lags, fs, multiband) for p in val_paths]
 
     for lam in lambdas:
         # train
@@ -170,12 +177,12 @@ def run_mTRF_subject(train_paths, test_path, cfg):
     XtY = np.zeros((n_features, Ydim)) if multiband else np.zeros((n_features,))
 
     for p in train_paths:
-        Xs, ys = load_subject_block(p)
+        Xs, ys = load_subject_block(p,lags, fs, multiband)
         XtX += Xs.T @ Xs
         XtY += Xs.T @ ys
 
     w = np.linalg.solve(XtX + best_lambda * np.eye(n_features), XtY)
-
+    decoder_w = w.copy()
     # == evaluate on test subject ==
     test_data, test_nwb = DataPreparation.Load_data(test_path, merged=True, multiband=True)
 
@@ -208,7 +215,11 @@ def run_mTRF_subject(train_paths, test_path, cfg):
                 wa = np.corrcoef(yp, env_att[start:end])[0, 1]
                 wu = np.corrcoef(yp, env_unatt[start:end])[0, 1]
 
-            win_list.append({"correct": bool(wa > wu)})
+            win_list.append({
+                "start": start / fs,
+                "end": end / fs,
+                "correct": bool(wa > wu)
+            })
 
         window_acc = np.mean([x["correct"] for x in win_list])
 
@@ -234,6 +245,10 @@ def run_mTRF_subject(train_paths, test_path, cfg):
         "results": results,
         "full_accuracy": full_acc,
         "window_accuracy": win_acc,
+        "decoder_w": decoder_w,
+        "lags": lags,
+        "fs": fs,
+        "n_channels": test_data[0][0].shape[1],
     }
 
 
@@ -246,10 +261,17 @@ def main():
     print(f"Subjects: {subjects}")
     print("=================================================\n")
 
-    all_results = []
+    # --------------------------------------------------
+    # Create automatic run-numbered directory for SI run
+    # --------------------------------------------------
+    SI_base = paths.RESULTS_LIN / "SI"
+    run_dir = paths.get_next_run_dir(SI_base)
+    print(f"Saving all SI results to: {run_dir}")
 
-    # Make results directory
-    os.makedirs(paths.RESULTS_LIN, exist_ok=True)
+    # Save config snapshot
+    paths.save_config_copy(cfg, run_dir)
+
+    all_results = []
 
     # == LOSO LOOP ==
     for i, test_subj in enumerate(subjects, start=1):
@@ -268,25 +290,37 @@ def main():
         all_results.append(res)
 
         # Save intermediate results after each subject
-        tmp_json = paths.result_file_lin(f"mTRF_partial_{i}.json")
+        tmp_json = os.path.join(run_dir, f"mTRF_partial_{i}.json")
+        serializable_partial=make_json_serializable(all_results)
         with open(tmp_json, "w") as f:
-            json.dump(all_results, f, indent=4)
+            json.dump(serializable_partial, f, indent=4)
 
         print(f"✓ Finished subject {test_subj}")
         print(f"✓ Partial results saved to: {tmp_json}\n")
 
     print("\n========== LOSO COMPLETED — SUMMARIZING ==========\n")
 
-    summarize_results(all_results, cfg)
+    summarize_results(all_results, cfg, run_dir)
 
     print("\n========== DONE ==========\n")
 
+def make_json_serializable(obj):
+    """Recursively convert numpy arrays to lists for JSON."""
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {k: make_json_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [make_json_serializable(v) for v in obj]
+    else:
+        return obj
 
-def summarize_results(results, cfg):
+def summarize_results(results, cfg, run_dir):
     """Aggregate and save all subject-level results."""
     if not results:
         print("No usable results, skipping summary.")
         return
+
 
     # Aggregate accuracies
     full_accs = [r["full_accuracy"] for r in results]
@@ -297,13 +331,14 @@ def summarize_results(results, cfg):
     print(f"Mean windowed accuracy:  {np.mean(win_accs):.2f}")
 
     # JSON export
-    json_path = paths.result_file_lin(f"mTRF_results_LOSO.json")
+    json_path = os.path.join(run_dir, "mTRF_results.json")
+    serializable_results = make_json_serializable(results)
     with open(json_path, "w") as f:
-        json.dump(results, f, indent=4)
+        json.dump(serializable_results, f, indent=4)
     print(f"Saved results to {json_path}")
 
     # CSV summary
-    csv_path = paths.result_file_lin(f"mTRF_summary_LOSO.csv")
+    csv_path = os.path.join(run_dir, "mTRF_summary.csv")
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Subject_ID", "Full_Trial_Accuracy", "Windowed_Accuracy"])
@@ -316,10 +351,40 @@ def summarize_results(results, cfg):
     all_unatt = np.concatenate([np.array([t["corr_unatt"] for t in subj["results"]]) for subj in results])
     stats = summaryStats.SummaryStats(all_att, all_unatt)
 
-    with open(paths.result_file_lin(f"stats_LOSO.json"), "w") as f:
+    stats_path = os.path.join(run_dir, "stats.json")
+    with open(stats_path, "w") as f:
         json.dump(stats, f, indent=4)
 
-    summaryStats.plot_histograms(all_att, all_unatt, paths.result_file_lin(f"Histogram_LOSO"))
+    summaryStats.plot_histograms(all_att, all_unatt, os.path.join(run_dir, "Correlations"))
+
+    subjects = [r["subject_id"] for r in results]
+    full_accs = [r["full_accuracy"] for r in results]
+    win_accs = [r["window_accuracy"] for r in results]
+
+    # == extra plots ==
+    # 1. Accuracy bars
+    plot_subject_bars(full_accs, win_accs, subjects, os.path.join(run_dir, "Accuracy"))
+
+
+    # 2. Accuracy vs. window length
+    plot_window_length_curve(results,
+                             cfg["backward_model"]["window_s"],
+                             os.path.join(run_dir, "WindowLengthCurve"))
+
+    # 3. TRF
+    first = results[0]
+    lags_low, lags_high = first["lags"]
+    lag_samples = np.arange(lags_low, lags_high + 1)
+    plot_trf_weights(
+        first["decoder_w"],
+        first["n_channels"],
+        lag_samples,
+        os.path.join(run_dir, "TRF")
+    )
+
+    # 4. Per-subject heatmaps
+    for subj in results:
+        plot_window_heatmap(subj, subj["subject_id"], os.path.join(run_dir, f"Heatmap_{subj['subject_id']}"))
 
 
 if __name__ == '__main__':

@@ -30,9 +30,8 @@ class paths:
     RESULTS_DL = ROOT / "Results_DL"
 
     # --------------------
-    # Helper methods
+    # Config loader
     # --------------------
-
     @staticmethod
     def load_config():
         """Load config.yaml as a dictionary."""
@@ -40,6 +39,9 @@ class paths:
             return yaml.safe_load(f)
 
 
+    # --------------------
+    # Subject paths
+    # --------------------
     @staticmethod
     def subject_eegPP(subject_id: str):
         """
@@ -50,11 +52,7 @@ class paths:
 
     @staticmethod
     def subject_eegPP_list(subject_ids: list):
-        subj_paths=[]
-        for subject in subject_ids:
-            subj_path = paths.subject_eegPP(subject)
-            subj_paths.append(subj_path)
-        return subj_paths
+        return [paths.subject_eegPP(s) for s in subject_ids]
 
     @staticmethod
     def subject_raw(subject_id: str):
@@ -71,10 +69,21 @@ class paths:
         """Path to a stimulus audio file."""
         return paths.STIM_DAS / filename
 
+    # --------------------
+    # Result paths
+    # --------------------
     @staticmethod
-    def result_file_lin(name: str):
+    def result_file_lin_SS(name: str):
         """Result file inside Results directory."""
-        return paths.RESULTS_LIN / name
+        dir=paths.RESULTS_LIN / "SS"
+        os.makedirs(dir,exist_ok=True)
+        return dir / name
+
+    def result_file_lin_SI(name: str):
+        """Result file inside Results directory."""
+        dir = paths.RESULTS_LIN / "SI"
+        os.makedirs(dir,exist_ok=True)
+        return dir / name
 
     @staticmethod
     def result_file_DL(cfg):
@@ -92,3 +101,41 @@ class paths:
         """
         return paths.ROOT.joinpath(*relative_parts)
 
+
+    # --------------------
+    # Automatic run-numbered directory
+    # --------------------
+    @staticmethod
+    def get_next_run_dir(base_dir):
+        """
+        Creates incrementing run folders: run_0001, run_0002, ...
+        Returns the full path to the created directory.
+        """
+        os.makedirs(base_dir, exist_ok=True)
+
+        existing = [
+            d for d in os.listdir(base_dir)
+            if os.path.isdir(os.path.join(base_dir, d)) and d.startswith("run_")
+        ]
+
+        run_numbers = []
+        for d in existing:
+            try:
+                run_numbers.append(int(d.replace("run_", "")))
+            except ValueError:
+                pass
+
+        next_num = max(run_numbers) + 1 if run_numbers else 1
+        run_name = f"run_{next_num:04d}"
+
+        new_run_dir = os.path.join(base_dir, run_name)
+        os.makedirs(new_run_dir, exist_ok=True)
+        return new_run_dir
+
+    @staticmethod
+    def save_config_copy(cfg: dict, run_dir: str):
+        """Save a copy of the config to run_dir/config_used.yaml."""
+        save_path = os.path.join(run_dir, "config_used.yaml")
+        with open(save_path, "w") as f:
+            yaml.safe_dump(cfg, f)
+        return save_path

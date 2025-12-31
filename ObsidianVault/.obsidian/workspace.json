@@ -4,53 +4,39 @@
     "type": "split",
     "children": [
       {
-        "id": "ce357d5973ec594a",
+        "id": "0977461363c25ff6",
         "type": "tabs",
         "children": [
           {
-            "id": "e6a2688bc4e83084",
+            "id": "cb130823c4bc679a",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "ObsidianMasterThesis/presentation extras.md",
+                "file": "ObsidianMasterThesis/Overview folder/Plan/Preprocessing.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "presentation extras"
+              "title": "Preprocessing"
             }
           },
           {
-            "id": "cc261460290097fc",
+            "id": "684e0d9673ff3d16",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "ObsidianMasterThesis/Papers/Geirnaert/Notes Geirnaert et al.--- EEG-based Auditory Attention Decoding.md",
+                "file": "ObsidianMasterThesis/Overview folder/Plan/Batch design.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Notes Geirnaert et al.--- EEG-based Auditory Attention Decoding"
-            }
-          },
-          {
-            "id": "893e8677c7683024",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "ObsidianMasterThesis/Papers/Neuroscience.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "Neuroscience"
+              "title": "Batch design"
             }
           }
         ],
-        "currentTab": 2
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -107,8 +93,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 275.5,
-    "collapsed": true
+    "width": 474.5
   },
   "right": {
     "id": "7b59682932637985",
@@ -238,56 +223,58 @@
       "iconic:Open rulebook": false
     }
   },
-  "active": "893e8677c7683024",
+  "active": "684e0d9673ff3d16",
   "lastOpenFiles": [
+    "ObsidianMasterThesis/Overview folder/Plan/Training strategy.md",
+    "ObsidianMasterThesis/Meeting 1 - 30_9.md",
+    "ObsidianMasterThesis/Meeting 2 - 8_10.md",
+    "ObsidianMasterThesis/Overview folder/Plan/Preprocessing.md",
+    "ObsidianMasterThesis/Overview folder/Plan/Plan....md",
     "ObsidianMasterThesis/Papers/Geirnaert/Notes Geirnaert et al.--- EEG-based Auditory Attention Decoding.md",
-    "ObsidianMasterThesis/presentation extras.md",
-    "ObsidianMasterThesis/Papers/Neuroscience.md",
+    "ObsidianMasterThesis/Overview folder/Plan/Papers about contrastive learning.md",
+    "v1_covered_390faee4-eb32-4e4b-8c16-f119f55a2aa7.pdf",
+    "2002.05709v3.pdf",
+    "v1_covered_390faee4-eb32-4e4b-8c16-f119f55a2aa7 1.pdf.md",
+    "2308.04244v1.pdf",
+    "2401.04964v2.pdf",
+    "2410.18395v1.pdf",
+    "Sridhar_2025_J._Neural_Eng._22_036041.pdf",
+    "v1_covered_390faee4-eb32-4e4b-8c16-f119f55a2aa7 1.pdf",
+    "2401.04964v2 1.pdf",
+    "2401.04964v2 2.pdf",
+    "ObsidianMasterThesis/Overview folder/Notes Intro.md",
+    "ObsidianMasterThesis/Overview folder/extra info/presentation extras.md",
+    "ObsidianMasterThesis/Overview folder/extra info/Regularization.md",
+    "ObsidianMasterThesis/Overview folder/extra info/Subject dependent or specific vs subject independent.md",
+    "ObsidianMasterThesis/Overview folder/extra info",
+    "ObsidianMasterThesis/Overview folder/literature evolution/Linear methods.md",
+    "ObsidianMasterThesis/Overview folder/literature evolution/AADNet.md",
+    "ObsidianMasterThesis/Overview folder/literature evolution/CNNs.md",
+    "ObsidianMasterThesis/Overview folder/Bollens paper in practice.md",
+    "ObsidianMasterThesis/Overview folder/Plan/Goals.md",
+    "ObsidianMasterThesis/Overview folder/Plan/Batch design.md",
+    "ObsidianMasterThesis/Overview folder/datasets.md",
+    "ObsidianMasterThesis/ThesisPlanner.canvas",
+    "ObsidianMasterThesis/Overview folder/CodeRelated/Parameters config file.md",
+    "ObsidianMasterThesis/Overview folder/CodeRelated/parameters.md",
+    "ObsidianMasterThesis/Overview folder/CodeRelated/ideal plots.md",
+    "run with 5 subjects.md",
+    "ObsidianMasterThesis/Papers/Overview folder/research questions.md",
     "ObsidianMasterThesis/Papers/bollens/Notes Bollens et al. --- Contrastive Representation Learning with Transformers for Robust Auditory EEG Decoding.md",
+    "ObsidianMasterThesis/Papers/bollens/Contrastive Loss Steps.md",
+    "ObsidianMasterThesis/Images/SoftMax_Over_Candidates.png",
+    "Untitled 2.canvas",
+    "Untitled 1.canvas",
+    "Untitled.canvas",
     "ObsidianMasterThesis/Images/ProblemStatement 1.png",
     "ObsidianMasterThesis/Images/ProblemStatement.png",
     "ObsidianMasterThesis/Images/quote.png",
-    "ObsidianMasterThesis/Images/presentation-introduction-chloe-300925.pdf",
     "ObsidianMasterThesis/Images/performance.png",
     "ObsidianMasterThesis/Images/nonlinear3.png",
     "ObsidianMasterThesis/Images/nonlinear2.png",
     "ObsidianMasterThesis/Images/nonlinear1.png",
     "ObsidianMasterThesis/Images/neuro-steered hearing device.png",
     "ObsidianMasterThesis/Images/ModelArchitecture.png",
-    "ObsidianMasterThesis/Images/MMSE.png",
-    "ObsidianMasterThesis/Papers/Overview folder/Overall timeline.md",
-    "ObsidianMasterThesis/daily notes/07-12-2025.md",
-    "Untitled.canvas",
-    "ObsidianMasterThesis/Papers/Geirnaert/Subject intro.md",
-    "ObsidianMasterThesis/Papers/Overview folder/Notes Intro.md",
-    "Untitled 1.canvas",
-    "ObsidianMasterThesis/ThesisPlanner.canvas",
-    "ObsidianMasterThesis/Papers/Overview folder/Parameters config file.md",
-    "ObsidianMasterThesis/Papers/Overview folder/ideal plots.md",
-    "ObsidianMasterThesis/Papers/Overview folder/Plan/Plan....md",
-    "ObsidianMasterThesis/Papers/Overview folder/Plan/Subject dependent or specific vs subject independent.md",
-    "ObsidianMasterThesis/Papers/CNNs.md",
-    "ObsidianMasterThesis/Papers/Overview folder/parameters.md",
-    "ObsidianMasterThesis/Meeting 1 - 30_9.md",
-    "ObsidianMasterThesis/Papers/Overview folder/Preprocessing.md",
-    "ObsidianMasterThesis/Papers/Linear methods.md",
-    "ObsidianMasterThesis/Papers/AADNet.md",
-    "run with 5 subjects.md",
-    "ObsidianMasterThesis/Guidelines/paper layout and template.md",
-    "ObsidianMasterThesis/Guidelines/guidelines_thesis.pdf",
-    "ObsidianMasterThesis/Papers/Overview folder/Plan/Goals.md",
-    "Excalidraw/Drawing 2025-10-21 11.16.48.excalidraw.md",
-    "Excalidraw",
-    "ObsidianMasterThesis/Papers/Overview folder/datasets.md",
-    "ObsidianMasterThesis/Papers/bollens/Contrastive Loss Steps.md",
-    "ObsidianMasterThesis/Papers/bollens/EncoderSteps.md",
-    "ObsidianMasterThesis/Papers/Overview folder/Plan",
-    "Untitled.base",
-    "Untitled 1.base",
-    "Untitled 2.base",
-    "ObsidianMasterThesis/Papers/Overview folder",
-    "ObsidianMasterThesis/Images/Images",
-    "ObsidianMasterThesis/Papers/Sridhar",
     "ObsidianMasterThesis/Papers/Untitled.canvas"
   ]
 }

@@ -13,7 +13,7 @@ Do_preprocessing: True
 # ============================================================
 subjects:
   all: [S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16]
-  medium: [S1,S2,S3,S4,S5,S6]
+  medium: [S1,S2,S3]
   small: [S1,S2]
 use_subjects: "medium"
 
@@ -43,7 +43,7 @@ preprocessing:
 # 4. Backward model (mTRF) settings
 # ============================================================
 backward_model:
-  window_s: 30
+  window_s: 5
   step_s: 1
   lag_ms: [-100, 400]
   multiband: true
