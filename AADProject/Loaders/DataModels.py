@@ -11,9 +11,11 @@ class Trial:
     index: int
     eeg_raw: Optional[np.ndarray] = None
     eeg_PP:Optional[np.ndarray]=None
+    fs_eeg_original: Optional[float] = None
     fs_eeg: Optional[float] = None
     channels: Optional[list] = None
     stimuli: Dict[str, np.ndarray] = field(default_factory=dict)
+    fs_stimuli_original: Dict[str, float] = field(default_factory=dict)
     fs_stimuli: Dict[str, float] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
 

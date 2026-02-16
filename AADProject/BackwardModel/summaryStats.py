@@ -43,7 +43,7 @@ def plot_histograms(r_att, r_unatt, save_path):
 
     if save_path is not None:
         plt.savefig(os.path.join(save_path, "Histogram"), dpi=300)
-        print(f"Histogram plot saved to: {os.path.join(save_path, "Histogram")}")
+        print(f"Histogram plot saved to: {os.path.join(save_path, 'Histogram')}")
 
     plt.show()
 

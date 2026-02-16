@@ -47,14 +47,20 @@ def erbspacebw(f_low, f_high, spacing):
     return erb2freq(erb_points)
 
 ## actual code --------------------
-def PreprocessAudioFiles(cfg):
+def PreprocessAudioFiles(cfg,dataset):
 
     target_fs = int(cfg["preprocessing"]["target_fs"])
     print(f"[Audio] Saving subband envelopes (.npz) to: {paths.ENVELOPES}")
 
-    for stimulus in Path(paths.STIM_DAS).iterdir():
-        if stimulus.is_file() and stimulus.suffix.lower() == ".wav" and "_dry" in stimulus.stem:
-            print(f"  - {stimulus.name}")
+    
+    for stimulus in (Path(paths.STIM_DAS).iterdir() if dataset == "DAS" else Path(paths.STIM_DTU).iterdir()):
+        print(stimulus.name)
+
+        is_wav = stimulus.is_file() and stimulus.suffix.lower() == ".wav"
+        keep = is_wav and (("_dry" in stimulus.stem) if dataset == "DAS" else True)
+
+        if keep:
+            print(f"  - processing: {stimulus.name}")
             audio, fs_audio = librosa.load(stimulus, sr=None, mono=True)
             env, fs_env, cf, weights = extract_envelope_das2019(
                 audio,
@@ -65,18 +71,15 @@ def PreprocessAudioFiles(cfg):
                 plot=False,
             )
 
-
             out_path = paths.envelope(f"{stimulus.stem}_env.npz")
             np.savez(
                 out_path,
-                envelope=env,  # (samples, bands)
+                envelope=env,
                 fs_env=np.array([fs_env], dtype=np.int32),
-                cf=cf,  # (bands,)
-                subband_weights=weights,  # (bands,)
+                cf=cf,
+                subband_weights=weights,
             )
-
-            # ### CHECK
-            print(f"nsaved: {out_path} | shape={env.shape} | fs={fs_env}Hz | bands={env.shape[1]}")
+            print(f"  saved: {out_path} | shape={env.shape} | fs={fs_env}Hz | bands={env.shape[1]}")
 
 
 
@@ -246,9 +249,7 @@ def plot_subband_envelopes(env, fs_env, num_bands=5, seconds=3):
 
 
 
-if __name__ == "__main__":
-    cfg = paths.CONFIG_FILE
-    PreprocessAudioFiles(cfg)
+
 
 
 

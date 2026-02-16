@@ -198,9 +198,8 @@ def load_subject_block(nwb_path, lags, fs, multiband, eeg_std=None, y_std=None):
 # =========================
 
 def run_mTRF_subject(train_paths, test_path, cfg):
-    # -------------------------
-    # Load config parameters
-    # -------------------------
+    
+    # load config parameters
     fs = cfg["preprocessing"]["target_fs"]
     window_len = int(cfg["backward_model"]["window_s"] * fs)
     step = int(cfg["backward_model"]["step_s"] * fs)
@@ -209,23 +208,14 @@ def run_mTRF_subject(train_paths, test_path, cfg):
 
     print(f"Loading {len(train_paths)} training subjects...")
 
-    # -------------------------
-    # Split train/val for lambda tuning
-    # -------------------------
+    # ----- Split train/val for lambda tuning -----
     val_fraction = 0.2
     n_subjects = len(train_paths)
     n_val = max(1, int(n_subjects * val_fraction))
-
-    # keep this deterministic (last subjects = validation)
     val_paths = train_paths[-n_val:]
     tr_paths = train_paths[:-n_val]
 
-    if len(tr_paths) == 0:
-        raise ValueError("Not enough training subjects after train/val split.")
-
-    # -------------------------
-    # Fit standardizers on TRAIN subjects only
-    # -------------------------
+    # ----- Fit standardizers on TRAIN subjects only -----
     eeg_accum = []
     y_accum = []
 
@@ -239,59 +229,51 @@ def run_mTRF_subject(train_paths, test_path, cfg):
     eeg_std = Standardizer().fit(np.vstack(eeg_accum))
     y_std = Standardizer().fit(np.vstack(y_accum))
 
-    # -------------------------
-    # Determine feature dimension
-    # -------------------------
+    # ----- Determine feature dimension -----
     X_first, y_first = load_subject_block(tr_paths[0], lags, fs, multiband, eeg_std, y_std)
     n_features = X_first.shape[1]
-    Ydim = y_first.shape[1]  # always 2D in your loader (multiband -> B, else -> 1)
+    Ydim = y_first.shape[1] if multiband else 1
 
-    # -------------------------
-    # Precompute XtX, XtY on training set (excluding val)
-    # -------------------------
-    XtX = (X_first.T @ X_first).astype(float)
-    XtY = (X_first.T @ y_first).astype(float)  # (n_features, Ydim)
+    # ----- Precompute XtX, XtY for training set (excluding val) -----
+    XtX = X_first.T @ X_first
+    XtY = (X_first.T @ y_first) if multiband else (X_first.T @ y_first).ravel()
 
     for p in tr_paths[1:]:
         Xs, ys = load_subject_block(p, lags, fs, multiband, eeg_std, y_std)
         XtX += Xs.T @ Xs
-        XtY += Xs.T @ ys
+        XtY += (Xs.T @ ys) if multiband else (Xs.T @ ys).ravel()
 
-    # -------------------------
-    # Preload validation blocks
-    # -------------------------
+    # ----- Preload validation blocks -----
     print("Tuning λ ...")
-    val_blocks = [load_subject_block(p, lags, fs, multiband, eeg_std, y_std) for p in val_paths]
+    val_blocks = [
+        load_subject_block(p, lags, fs, multiband, eeg_std, y_std)
+        for p in val_paths
+    ]
 
-    # -------------------------
-    # Lambda tuning (fast via eigendecomposition)
-    # -------------------------
+    # ----- Lambda tuning using eigendecomposition (fast per-lambda) -----
     lambdas = np.logspace(0, 6, 7)
     best_lambda = None
     best_score = -np.inf
 
-    eigvals, Q = np.linalg.eigh(XtX)  # XtX symmetric PSD
-    QtY = Q.T @ XtY                   # (n_features, Ydim)
+    eigvals, Q = np.linalg.eigh(XtX)
+    QtY = Q.T @ XtY
 
     for lam in lambdas:
-        # ridge solution using eigendecomp
-        w = Q @ (QtY / (eigvals[:, None] + lam))  # (n_features, Ydim)
-
-        # evaluate on validation subjects (mean corr with attended)
+        #train on val
+        if multiband:
+            w = Q @ (QtY / (eigvals[:, None] + lam))
+        else:
+            w = Q @ (QtY / (eigvals + lam))
+        
+        #test on val
         scores = []
         for Xv, yv in val_blocks:
-            y_pred = ridge_predict(Xv, w)  # (T, Ydim)
-
-            # correlation (full block)
-            if Ydim > 1:
-                r = np.mean([np.corrcoef(y_pred[:, b], yv[:, b])[0, 1] for b in range(Ydim)])
+            y_pred = ridge_predict(Xv, w)
+            if multiband:
+                r_att = float(np.mean([np.corrcoef(y_pred[:, b], yv[:, b])[0, 1] for b in range(y_pred.shape[1])]))
             else:
-                r = np.corrcoef(y_pred.ravel(), yv.ravel())[0, 1]
-
-            # handle NaNs (can happen if variance is ~0)
-            if np.isnan(r):
-                r = 0.0
-            scores.append(float(r))
+                r_att = float(np.corrcoef(y_pred.ravel(), yv.ravel())[0, 1])
+            scores.append(r_att)
 
         mean_score = float(np.mean(scores))
         print(f"λ={lam:.1e}  | mean r={mean_score:.4f}")
@@ -301,87 +283,54 @@ def run_mTRF_subject(train_paths, test_path, cfg):
 
     print(f"Best λ = {best_lambda}")
 
-    # -------------------------
-    # Train on ALL training subjects (train_paths)
-    # -------------------------
+    # ----- Train on all training subjects -----
     XtX = np.zeros((n_features, n_features), dtype=float)
-    XtY = np.zeros((n_features, Ydim), dtype=float)
+    XtY = np.zeros((n_features, Ydim), dtype=float) if multiband else np.zeros((n_features,), dtype=float)
 
     for p in train_paths:
         Xs, ys = load_subject_block(p, lags, fs, multiband, eeg_std, y_std)
         XtX += Xs.T @ Xs
-        XtY += Xs.T @ ys
+        XtY += (Xs.T @ ys) if multiband else (Xs.T @ ys).ravel()
 
     w = np.linalg.solve(XtX + best_lambda * np.eye(n_features), XtY)
     decoder_w = w.copy()
 
-    # -------------------------
-    # Determine dataset label (from path)
-    # -------------------------
-    dataset_label = "unknown"
-    pth = str(test_path).lower()
-    if "dtu" in pth:
-        dataset_label = "DTU"
-    elif "das" in pth:
-        dataset_label = "DAS"
-
-    # -------------------------
-    # Evaluate on test subject (with META)
-    # -------------------------
-    test_data, test_meta, test_nwb = DataPreparation.Load_data(
-        test_path, merged=True, multiband=multiband, return_meta=True
-    )
-
-    # ---- Sanity checks for DTU metadata ----
-    if dataset_label == "DTU":
-        print("Example meta rows:", test_meta[:3])
-
-        conds = [m.get("acoustic_condition", -1) for m in test_meta]
-        uniq, cnt = np.unique(conds, return_counts=True)
-        print("DTU condition counts in this test subject:", dict(zip(uniq.tolist(), cnt.tolist())))
-
+    # ----- Evaluate on test subject -----
+    test_data, test_nwb = DataPreparation.Load_data(test_path, merged=True, multiband=multiband)
 
     results = []
     for ti, (eeg, env_att, env_unatt) in enumerate(test_data):
-        # --- standardize with TRAIN stats ---
         eeg = eeg_std.transform(eeg)
 
         y_att = env_att if multiband else env_att.reshape(-1, 1)
-        y_un  = env_unatt if multiband else env_unatt.reshape(-1, 1)
+        y_un = env_unatt if multiband else env_unatt.reshape(-1, 1)
 
         y_att = y_std.transform(y_att)
-        y_un  = y_std.transform(y_un)
+        y_un = y_std.transform(y_un)
 
-        # --- build lag matrix, predict ---
         X = create_lag_matrix(eeg, lags, fs)
-        y_pred = X @ w  # (T, Ydim)
+        y_pred = X @ w
 
-        # --- condition (DTU only; DAS -> -1) ---
-        cond = int(test_meta[ti].get("acoustic_condition", -1)) if isinstance(test_meta, list) else -1
-
-        # --- full-trial correlations ---
-        if Ydim > 1:
+        # Full-trial correlation
+        if multiband:
             corr_att = float(np.mean([np.corrcoef(y_pred[:, b], y_att[:, b])[0, 1] for b in range(Ydim)]))
-            corr_un  = float(np.mean([np.corrcoef(y_pred[:, b], y_un[:, b])[0, 1]  for b in range(Ydim)]))
+            corr_unatt = float(np.mean([np.corrcoef(y_pred[:, b], y_un[:, b])[0, 1] for b in range(Ydim)]))
         else:
             corr_att = float(np.corrcoef(y_pred.ravel(), y_att.ravel())[0, 1])
-            corr_un  = float(np.corrcoef(y_pred.ravel(), y_un.ravel())[0, 1])
+            corr_unatt = float(np.corrcoef(y_pred.ravel(), y_un.ravel())[0, 1])
 
-        if np.isnan(corr_att): corr_att = 0.0
-        if np.isnan(corr_un):  corr_un  = 0.0
+        correct_full = bool(corr_att > corr_unatt)
 
-        correct_full = bool(corr_att > corr_un)
-
-        # --- windowed evaluation ---
-        if Ydim > 1:
+        # Window evaluation
+        if multiband:
             cors_att = windowed_corr_fast(y_pred, y_att, window_len, step)
-            cors_un  = windowed_corr_fast(y_pred, y_un,  window_len, step)
+            cors_un = windowed_corr_fast(y_pred, y_un, window_len, step)
         else:
             cors_att = windowed_corr_fast(y_pred.ravel(), y_att.ravel(), window_len, step)
-            cors_un  = windowed_corr_fast(y_pred.ravel(), y_un.ravel(),  window_len, step)
+            cors_un = windowed_corr_fast(y_pred.ravel(), y_un.ravel(), window_len, step)
 
         correct_vec = cors_att > cors_un
-        window_acc = float(np.mean(correct_vec))
+        window_acc = float(correct_vec.mean())
 
         starts = np.arange(0, X.shape[0] - window_len + 1, step, dtype=int)
         win_list = [
@@ -391,44 +340,32 @@ def run_mTRF_subject(train_paths, test_path, cfg):
 
         results.append({
             "trial": ti + 1,
-            "acoustic_condition": cond,
             "corr_att": corr_att,
-            "corr_unatt": corr_un,
+            "corr_unatt": corr_unatt,
             "correct_full": correct_full,
             "window_accuracy": window_acc,
             "windows": win_list
         })
 
         print(
-            f"Trial {ti + 1}/{len(test_data)} | cond={cond}: "
-            f"r_att={corr_att:.3f} | r_unatt={corr_un:.3f} | {correct_full} | win_acc={window_acc:.2f}"
+            f"Trial {ti + 1}/{len(test_data)}: r_att={corr_att:.3f} | r_unatt={corr_unatt:.3f} | "
+            f"{correct_full} | win_acc={window_acc:.2f}"
         )
 
     full_acc = float(np.mean([r["correct_full"] for r in results]))
-    win_acc  = float(np.mean([r["window_accuracy"] for r in results]))
+    win_acc = float(np.mean([r["window_accuracy"] for r in results]))
+
+    dataset_label = "unknown"
+    p = str(test_path).lower()
+    if "dtu" in p:
+        dataset_label = "DTU"
+    elif "das" in p:
+        dataset_label = "DAS"
 
     subject_label = os.path.basename(str(test_path)).replace(".nwb", "")
+
     print(f"Subject {test_nwb.identifier}: Full acc = {full_acc:.2f} | Window acc = {win_acc:.2f}")
 
-    # -------------------------
-    # DTU per-condition report (subject-level)
-    # -------------------------
-    if dataset_label == "DTU":
-        conds = sorted(set(r["acoustic_condition"] for r in results))
-        print("Per acoustic condition (this subject):")
-        for c in conds:
-            if c < 0:
-                continue
-            rs = [r for r in results if r["acoustic_condition"] == c]
-            if not rs:
-                continue
-            c_full = float(np.mean([r["correct_full"] for r in rs]))
-            c_win  = float(np.mean([r["window_accuracy"] for r in rs]))
-            print(f"  condition {c}: full={c_full:.2f} | window={c_win:.2f} | n_trials={len(rs)}")
-
-    # -------------------------
-    # Return full fold results
-    # -------------------------
     return {
         "subject_id": test_nwb.identifier,
         "subject_label": subject_label,
@@ -442,7 +379,6 @@ def run_mTRF_subject(train_paths, test_path, cfg):
         "n_channels": test_data[0][0].shape[1],
     }
 
-    
 
 # =========================
 # JSON serialization
@@ -564,42 +500,6 @@ def merge_subject_jsons(run_dir):
 # Main entrypoint
 # =========================
 
-
-def _dataset_of(subj_name: str) -> str:
-    s = subj_name.lower()
-    if "dtu" in s:
-        return "DTU"
-    if "das" in s:
-        return "DAS"
-    return "unknown"
-
-
-def _select_subjects_by_mode(all_subjects, test_subj, mode):
-    """
-    Returns train_subjects list based on mode.
-
-    mode == "separate":
-        - DTU test -> train only on DTU (excluding test)
-        - DAS test -> train only on DAS (excluding test)
-
-    mode == "mixed":
-        - train on ALL subjects except test
-    """
-    test_ds = _dataset_of(test_subj)
-
-    if mode == "separate":
-        train_subjects = [s for s in all_subjects if _dataset_of(s) == test_ds and s != test_subj]
-    elif mode == "mixed":
-        train_subjects = [s for s in all_subjects if s != test_subj]
-    else:
-        raise ValueError(f"Unknown SI_mode: {mode}")
-
-    if len(train_subjects) == 0:
-        raise ValueError(f"No training subjects selected for test subject {test_subj} (mode={mode}).")
-
-    return train_subjects
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--single-subject", type=str, default=None,
@@ -615,8 +515,7 @@ def main():
     subjects = cfg["subjects"]["all"]
 
     print("\n========== RUNNING LOSO BACKWARD MODEL ==========")
-    print(f"Mode: {mode}")
-    print(f"N subjects total: {len(subjects)}")
+    print(f"Subjects: {subjects}")
     print("=================================================\n")
 
     SI_base = paths.RESULTS_LIN / "SI"
@@ -637,51 +536,54 @@ def main():
         print("\n========== DONE ==========\n")
         return
 
-    def run_one_subject(test_subj):
+    if args.single_subject is not None:
+        test_subj = args.single_subject
         if test_subj not in subjects:
-            raise ValueError(f"Subject {test_subj} not in config subjects list.")
+            raise ValueError(f"--single-subject {test_subj} not found in config subjects list.")
 
         test_path = paths.subject_eegPP(test_subj)
+        train_paths = [paths.subject_eegPP(s) for s in subjects if s != test_subj]
 
-        train_subjects = _select_subjects_by_mode(subjects, test_subj, mode)
-        train_paths = [paths.subject_eegPP(s) for s in train_subjects]
+        res = run_mTRF_subject(train_paths, test_path, cfg)
 
-        print(f"Test subject: {test_subj} ({_dataset_of(test_subj)})")
-        print(f"Training on {len(train_subjects)} subjects: "
-              f"{train_subjects[:5]}{' ...' if len(train_subjects) > 5 else ''}")
-
-        return run_mTRF_subject(train_paths, test_path, cfg)
-
-    # ---- single subject mode ----
-    if args.single_subject is not None:
-        res = run_one_subject(args.single_subject)
-
-        JSON_dir = os.path.join(run_dir, "json")
+        JSON_dir=os.path.join(run_dir,"json")
         os.makedirs(JSON_dir, exist_ok=True)
-        subject_json = os.path.join(JSON_dir, f"{args.single_subject}.json")
+        subject_json = os.path.join(JSON_dir, f"{test_subj}.json")
         with open(subject_json, "w") as f:
-            json.dump(make_json_serializable(res), f, indent=2)
+                json.dump(make_json_serializable(res), f, indent=2)
+        
 
-        print(f"✓ Finished subject {args.single_subject}")
+        print(f"✓ Finished subject {test_subj}")
         print(f"✓ Saved: {subject_json}")
         return
 
-    # ---- full LOSO ----
+    # Sequential fallback
     all_results = []
-    for i, test_subj in enumerate(subjects, start=1):
-        print(f"\n===============================================")
-        print(f"LOSO {i}/{len(subjects)} — Test subject: {test_subj}")
-        print("===============================================")
 
-        res = run_one_subject(test_subj)
-        all_results.append(res)
+    def LOSO_loop(subj_list):
+        for i, test_subj in enumerate(subj_list, start=1):
+            print(f"\n===============================================")
+            print(f"LOSO {i}/{len(subj_list)} — Test subject: {test_subj}")
+            print("===============================================")
 
-        tmp_json = os.path.join(run_dir, f"mTRF_partial_{i}.json")
-        with open(tmp_json, "w") as f:
-            json.dump(make_json_serializable(all_results), f, indent=4)
+            test_path = paths.subject_eegPP(test_subj)
+            train_paths = [paths.subject_eegPP(s) for s in subjects if s != test_subj]
 
-        print(f"✓ Finished subject {test_subj}")
-        print(f"✓ Partial results saved to: {tmp_json}\n")
+            res = run_mTRF_subject(train_paths, test_path, cfg)
+            all_results.append(res)
+
+            tmp_json = os.path.join(run_dir, f"mTRF_partial_{i}.json")
+            with open(tmp_json, "w") as f:
+                json.dump(make_json_serializable(all_results), f, indent=4)
+
+            print(f"✓ Finished subject {test_subj}")
+            print(f"✓ Partial results saved to: {tmp_json}\n")
+
+    if mode == "separate":
+        LOSO_loop(subjects)
+    elif mode == "mixed":
+        LOSO_loop([s for s in subjects if "DTU" in s])
+        LOSO_loop([s for s in subjects if "DAS" in s])
 
     print("\n========== LOSO COMPLETED — SUMMARIZING ==========\n")
     summarize_results(all_results, cfg, run_dir)
@@ -690,4 +592,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

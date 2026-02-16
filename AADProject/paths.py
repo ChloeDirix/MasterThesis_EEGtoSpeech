@@ -10,14 +10,19 @@ class paths:
     """
 
     # Root of the project (folder containing config.yaml)
-    ROOT = Path(__file__).resolve().parent
-
+    #ROOT = Path(__file__).resolve().parent
+    ROOT = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parent)).resolve()
     # --------------------
     # Base folders
     # --------------------
     DATA_DAS = ROOT / "Data_Das2019"
+    DATA_DTU = ROOT / "Data_DTU"
+
     RAW_EEG_DAS = DATA_DAS / "EEGData"
     STIM_DAS = DATA_DAS / "stimuli"
+
+    RAW_EEG_DTU = DATA_DTU / "EEG"
+    STIM_DTU= DATA_DTU / "AUDIO"
 
     DATA_INPUT_MODEL = ROOT / "Data_InputModel"
     ENVELOPES = DATA_INPUT_MODEL / "Envelopes"
@@ -43,21 +48,27 @@ class paths:
     # Subject paths
     # --------------------
     @staticmethod
-    def subject_eegPP(subject_id: str):
+    def subject_eegPP(subject_id: str,dataset=""):
         """
         Returns path to preprocessed EEG file for a given subject.
         Example: Paths.subject_eeg("S3") → Data_InputModel/EEG_PP/S3.nwb
         """
-        return paths.EEG_PP / f"{subject_id}.nwb"
+        if dataset=="":
+            return paths.EEG_PP / f"{subject_id}.nwb"
+        
+        return paths.EEG_PP / f"{subject_id}_{dataset}.nwb"
 
     @staticmethod
-    def subject_eegPP_list(subject_ids: list):
-        return [paths.subject_eegPP(s) for s in subject_ids]
+    def subject_eegPP_list(subject_ids: list, dataset=""):
+        return [paths.subject_eegPP(s,dataset) for s in subject_ids]
 
     @staticmethod
-    def subject_raw(subject_id: str):
-        """Path to raw EEG file."""
-        return paths.RAW_EEG_DAS / f"{subject_id}.mat"
+    def subject_raw(subject_id: str,dataset):
+        """Path to raw EEG file in certain dataset."""
+        if dataset=="DTU":
+            return paths.RAW_EEG_DTU / f"{subject_id}.mat"
+        elif dataset=="DAS":
+            return paths.RAW_EEG_DAS / f"{subject_id}.mat"
 
     @staticmethod
     def envelope(filename: str):
@@ -65,9 +76,12 @@ class paths:
         return paths.ENVELOPES / filename
 
     @staticmethod
-    def stimulus(filename: str):
+    def stimulus(filename: str, dataset: str):
         """Path to a stimulus audio file."""
-        return paths.STIM_DAS / filename
+        if dataset=="DTU":
+            return paths.STIM_DTU / filename
+        elif dataset=="DAS":    
+            return paths.STIM_DAS / filename
 
     # --------------------
     # Result paths

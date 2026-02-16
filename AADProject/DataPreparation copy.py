@@ -60,9 +60,14 @@ def Preprocess_Data():
 # -------------------------------------------------------------------------------
 #                             Load Data
 # -------------------------------------------------------------------------------
-def Load_data(nwb_path, merged=True, multiband=True, return_meta=False):
+def Load_data(nwb_path, merged=True, multiband=True):
+    """
+    Loads EEG + attended/unattended envelopes from NWB.
+    Uses a unified logic for DAS and DTU:
+      - stim_L_name / stim_R_name must exist
+      - attended_ear must exist
+    """
     data = []
-    meta = []
     with NWBHDF5IO(nwb_path, "r") as io:
         nwbfile = io.read()
         trials_df = nwbfile.trials.to_dataframe()
@@ -71,19 +76,13 @@ def Load_data(nwb_path, merged=True, multiband=True, return_meta=False):
             eeg, env_att, env_unatt = load_single_trial(nwbfile, tr, multiband)
             data.append((eeg, env_att, env_unatt))
 
-            if return_meta:
-                meta.append({
-                    "trial_index": int(tr["trial_index"]),
-                    "dataset": str(tr.get("dataset", "")),
-                    "acoustic_condition": int(tr["acoustic_condition"]) if "acoustic_condition" in tr else -1,
-                    "n_speakers": int(tr["n_speakers"]) if "n_speakers" in tr else -1,
-                })
-
+    # ------------- Merge repetition trials for mTRF ----------
     if merged:
         data = merge_repetition_trials(trials_df, data)
-        # NOTE: if you merge, meta needs merging too; easiest is: for per-condition analysis, run with merged=False
-    return (data, meta, nwbfile) if return_meta else (data, nwbfile)
+    else:
+        print(f"Using raw (unmerged) trials: {len(data)}")
 
+    return data, nwbfile
 
 
 # ==============================================================================

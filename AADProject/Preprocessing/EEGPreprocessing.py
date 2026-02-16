@@ -23,7 +23,7 @@ def rereference(eeg, method="Cz"):
         return eeg_reref
 
     # ---------- remove zero-variance channels --
-    eeg = eeg[:, np.std(eeg, axis=0) > 0]
+    #eeg = eeg[:, np.std(eeg, axis=0) > 0]
 
     return eeg
 
@@ -122,7 +122,7 @@ def preprocess_trial(trial, cfg):
         plt.show()
 
     # Z-score normalization
-    eeg = zscore(eeg, axis=0)
+    #eeg = zscore(eeg, axis=0)
 
     return eeg, fs
 
