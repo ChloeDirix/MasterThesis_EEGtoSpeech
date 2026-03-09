@@ -24,7 +24,7 @@ class paths:
     RAW_EEG_DTU = DATA_DTU / "EEG"
     STIM_DTU= DATA_DTU / "AUDIO"
 
-    DATA_INPUT_MODEL = ROOT / "Data_InputModel"
+    DATA_INPUT_MODEL = ROOT / "Data_InputModelFine"           #remove "Fine" for coarser data
     ENVELOPES = DATA_INPUT_MODEL / "Envelopes"
     EEG_PP = DATA_INPUT_MODEL / "EEG_PP"
 
@@ -39,9 +39,17 @@ class paths:
     # --------------------
     @staticmethod
     def load_config():
-        """Load config.yaml as a dictionary."""
-        with paths.CONFIG_FILE.open("r") as f:
+        """
+        Load config.yaml. Priority:
+        1) $AAD_CONFIG (explicit path)
+        2) default paths.CONFIG_FILE
+        """
+        cfg_override = os.environ.get("AAD_CONFIG", None)
+        cfg_path = cfg_override if cfg_override else str(paths.CONFIG_FILE)
+
+        with open(cfg_path, "r") as f:
             return yaml.safe_load(f)
+
 
 
     # --------------------
@@ -100,11 +108,11 @@ class paths:
         return dir / name
 
     @staticmethod
-    def result_file_DL(cfg):
-        if cfg["DeepLearning"]["model"]["architecture"]=="wo_transformer":
-            return paths.RESULTS_DL
+    def result_file_DL(cfg,pathgiven=None):
+        if pathgiven!=None:
+            return pathgiven
         else:
-            return f"{paths.RESULTS_DL}_Transformer"
+            return paths.RESULTS_DL
 
 
     @staticmethod

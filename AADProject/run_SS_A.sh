@@ -15,6 +15,8 @@
 # ---------------- CONDA ----------------
 source /user/leuven/373/vsc37381/data/anaconda3/bin/activate AADProjectEnv
 
+win_len=20
+
 # ---------------- THREADING ------------
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export OPENBLAS_NUM_THREADS=$SLURM_CPUS_PER_TASK
@@ -32,18 +34,18 @@ export PYTHONPATH="$CODE_DIR:$PYTHONPATH"
 
 # ---------------- SCRATCH --------------
 export PROJECT_ROOT="$VSC_SCRATCH"
+
+
 RUN_DIR="$VSC_SCRATCH/Results_Lin/SS/run_${SLURM_ARRAY_JOB_ID}"
+
 mkdir -p "$RUN_DIR"
-mkdir -p /scratch/leuven/373/vsc37381/slurm_logs
 
 
 cd "$CODE_DIR"
 
+cp -f "$CODE_DIR/config.yaml" "$RUN_DIR/config.yaml"
+export AAD_CONFIG="$RUN_DIR/config.yaml"
 
-# Snapshot config once (race-safe-ish)
-if [ ! -f "$RUN_DIR/config.yaml" ]; then
-  cp "$CODE_DIR/config.yaml" "$RUN_DIR/config.yaml"
-fi
 
 # ---------------- PICK SUBJECT ----------
 SUBJECT=$(python - <<'PY'
@@ -61,15 +63,8 @@ echo "Run dir: $RUN_DIR"
 # ---------------- RUN -------------------
 srun --cpu-bind=cores python BackwardModel/RunBackwardModel_SS.py \
   --single-subject "$SUBJECT" \
-  --run-dir "$RUN_DIR"
+  --run-dir "$RUN_DIR" \
+  --window-s "$win_len"
 
-# ---------------- STAGE-OUT (THIS TASK) -
-# copy only this subject's JSON to avoid race + avoid copying everything 34x
-rsync -avh "$RUN_DIR/json/${SUBJECT}.json" \
-  "$CODE_DIR/Results_Lin/SS/run_${SLURM_ARRAY_JOB_ID}/json/"
-
-# also copy config once (harmless if repeated)
-rsync -avh "$RUN_DIR/config.yaml" \
-  "$CODE_DIR/Results_Lin/SS/run_${SLURM_ARRAY_JOB_ID}/"
 
 echo "Done."

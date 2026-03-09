@@ -6,8 +6,111 @@ from pynwb import NWBHDF5IO
 from scipy.stats import zscore
 from paths import paths
 
+import os
+import numpy as np
+from paths import paths
+
+# =============================================================================
+# Helper functions (datapreparation)
+# =============================================================================
+def _get_envelope(stim_base: str, multiband: bool = True):
+    npz = np.load(paths.envelope(f"{stim_base}_env.npz"))
+    env = npz["envelope"]
+    w = npz["subband_weights"]
+
+    if multiband:
+        return env, w
+    else:
+        w_norm = w / np.sum(w)
+        env_mono = env @ w_norm
+        return env_mono[:, None], w_norm  # keep shape (T,1)
+
+def _align_lengths(*arrays):
+    m = min(len(a) for a in arrays)
+    return tuple(a[:m] for a in arrays)
+
+def _attended_index(att_ear):
+    """returns index for (L,R)"""
+    s = str(att_ear).lower()
+    if "left" in s or s.startswith("l") or s.endswith("l"):
+        return 0
+    if "right" in s or s.startswith("r") or s.endswith("r"):
+        return 1
+    else: 
+        print("no attended index found")
+
+def _load_data_from_trial(nwbfile, tr_row, cfg, multiband: bool):
+    """
+    Loads EEG and L/R envelopes for a trial.
+    Returns: eeg(T,C), envL(T,B), envR(T,B), att_idx(0/1), dataset_key(str)
+    """
+
+    # ---------------- EEG ----------------
+    if "trial_index" not in tr_row:
+        raise KeyError("trials_df does not contain 'trial_index' column, cannot map to EEG interfaces.")
+
+    tid = int(tr_row["trial_index"])
+
+    # Try a few common index conventions (some files store 0-based, some 1-based)
+    candidates = [
+        f"trial_{tid}_EEG_preprocessed",
+        f"trial_{tid+1}_EEG_preprocessed",
+        f"trial_{tid-1}_EEG_preprocessed",
+    ]
+
+    di = nwbfile.processing["eeg_preprocessed"].data_interfaces
+
+    eeg_key = None
+    for k in candidates:
+        if k in di:
+            eeg_key = k
+            break
+
+    if eeg_key is None:
+        # Give a helpful error message
+        available = list(di.keys())
+        raise KeyError(
+            f"None of {candidates} found in eeg_preprocessed.data_interfaces.\n"
+            f"Example available keys: {available[:20]}"
+        )
+
+    eeg = di[eeg_key].data[:]
+    eeg = np.asarray(eeg)
+
+
+    # remove extra channels
+    nC = cfg["preprocessing"]["target_n_channels"]   
+    if eeg.shape[1] < nC:
+        raise ValueError(f"Trial {tid}: EEG has {eeg.shape[1]} channels, expected >= {nC}")
+    eeg = eeg[:, :nC]
+
+    # envelopes
+    stimL = os.path.splitext(str(tr_row["stim_L_name"]))[0]
+    stimR = os.path.splitext(str(tr_row["stim_R_name"]))[0]
+
+    envL, _ = _get_envelope(stimL, multiband=multiband)
+    envR, _ = _get_envelope(stimR, multiband=multiband)
+
+    eeg, envL, envR = _align_lengths(eeg, envL, envR)
+
+    # attended stimulus
+    att = _attended_index(tr_row["attended_ear"])
+    ds_key = str(tr_row.get("dataset", "")).upper()
+
+    return eeg, envL, envR, att, ds_key
+
+
 
 class AADDataset(Dataset):
+    """
+    PyTorch Dataset for auditory attention decoding (AAD) from EEG.
+    Loads preprocessed EEG and stimulus envelopes from NWB files, and creates windows from them.
+
+    Input sample:
+      EEG window:     (win_len, C_eeg)
+      ENV window:     (2, win_len, B)  where 0=left, 1=right
+      attended index: scalar (0 or 1) --> 0=unattended, 1=attended
+    """
 
     def __init__(self, nwb_paths, cfg, multiband=True, split="train"):
         self.cfg = cfg
@@ -18,95 +121,61 @@ class AADDataset(Dataset):
         self.win_len = int(cfg["DeepLearning"]["data_windows"]["window_len_s"] * self.fs)
         self.win_step = int(cfg["DeepLearning"]["data_windows"]["window_step_s"] * self.fs)
 
-        # ---------------------------------------------------------
-        # STORAGE
-        # Each element: dict with keys:
-        #   "eeg", "env", "att", "T"
-        # ---------------------------------------------------------
+        
         self.trials = []
-        self.index = []  # list of (trial_idx, start_sample)
-
-        # ---------------------------------------------------------
-        # LOAD AND PREPROCESS ALL TRIALS
-        # ---------------------------------------------------------
+        self.index = []
+        self.sample_dataset_keys = []   #DTU/DAS
+        self.sample_subject_keys = []   #S1_DTU
+        # ---------------- Load all trials ----------------
         for nwb_path in nwb_paths:
             with NWBHDF5IO(nwb_path, "r") as io:
                 nwb = io.read()
                 trials_df = nwb.trials.to_dataframe()
+                subj_key = os.path.splitext(os.path.basename(str(nwb_path)))[0]
 
-                for row in trials_df.itertuples():
-                    trial_id = row.Index + 1
+                # Use iterrows() to align with your linear pipeline style
+                for idx, tr_row in trials_df.iterrows():
+                    eeg, envL, envR, att, ds_key = _load_data_from_trial(
+                        nwbfile=nwb,
+                        tr_row=tr_row,
+                        cfg=self.cfg,
+                        multiband=self.multiband,
+                    )
 
-                    # ---- 1. Load EEG ----
-                    key = f"trial_{trial_id}_EEG_preprocessed"
-                    eeg = nwb.processing["eeg_preprocessed"].data_interfaces[key].data[:]
-                    # Shape: (T, C)
-
-                    # Drop constant channels once
-                    std = np.std(eeg, axis=0)
-                    keep = std > 0
-                    eeg = eeg[:, keep]
-
-                    # ---- 2. Load envelopes ----
-                    stimL = row.stim_L_name
-                    stimR = row.stim_R_name
-
-                    L_base = os.path.splitext(stimL)[0]
-                    R_base = os.path.splitext(stimR)[0]
-
-                    L_npz = np.load(paths.envelope(f"{L_base}_env.npz"))
-                    R_npz = np.load(paths.envelope(f"{R_base}_env.npz"))
-
-                    envL = L_npz["envelope"]
-                    envR = R_npz["envelope"]
-
-                    if not multiband:
-                        wL = L_npz["subband_weights"]
-                        wR = R_npz["subband_weights"]
-                        envL = envL @ (wL / np.sum(wL))
-                        envR = envR @ (wR / np.sum(wR))
-                        envL = envL[:, None]  # (T,1)
-                        envR = envR[:, None]  # (T,1)
-
-                    # ---- 3. Align lengths ----
-                    Lmin = min(len(eeg), len(envL), len(envR))
-                    eeg = eeg[:Lmin]
-                    envL = envL[:Lmin]
-                    envR = envR[:Lmin]
-
-                    # ---- 4. Z-score once ----
+                    # Z-score per trial
                     eeg = zscore(eeg, axis=0)
                     envL = zscore(envL, axis=0)
                     envR = zscore(envR, axis=0)
 
-                    # ---- 5. Pack envelopes ----
-                    envelopes = np.stack([envL, envR], axis=0)  # (2, T, bands)
+                    # Pack envelopes: (2, T, B)
+                    envelopes = np.stack([envL, envR], axis=0)
+                    T = len(eeg)
 
-                    # ---- 6. Attended index ----
-                    ear = str(row.attended_ear).upper()
-                    att = 0 if ear.endswith("L") else 1
-
-                    # ---- 7. Store preprocessed trial ----
+                    # Store trial in a dict
                     tdict = {
-                        "eeg": eeg,            # (T, C)
-                        "env": envelopes,      # (2, T, B)
-                        "att": att,
-                        "T": Lmin
+                        "eeg": eeg,
+                        "env": envelopes,
+                        "att": int(att),
+                        "T": int(T),
+                        "dataset": ds_key,
                     }
                     trial_idx = len(self.trials)
                     self.trials.append(tdict)
 
-                    # ---- 8. Build window indices for this trial ----
-                    starts = np.arange(0, Lmin - self.win_len, self.win_step)
-                    for s in starts:
-                        self.index.append((trial_idx, int(s)))
-
+                    # Build window indices for this trial
+                    if T > self.win_len:
+                        starts = np.arange(0, T - self.win_len, self.win_step)
+                        for s in starts:
+                            self.index.append((trial_idx, int(s)))
+                            self.sample_dataset_keys.append(ds_key)
+                            self.sample_subject_keys.append(subj_key)
+                            
         print(f"{split} dataset: {len(self.index)} windows")
-
+        print(split, "unique dataset keys:", sorted(set(self.sample_dataset_keys))[:10])
+        
     # ----------------------------------------------------------
-    # PyTorch Dataset API
+    # PyTorch Dataset
     # ----------------------------------------------------------
-
     def __len__(self):
         return len(self.index)
 

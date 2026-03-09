@@ -5,7 +5,6 @@ import argparse
 import csv
 import json
 import os
-import re
 from pathlib import Path
 
 import numpy as np
@@ -69,7 +68,7 @@ def ridge_predict(X, w):
 
 
 # ============================================================
-# Fast windowed correlation (same as SI)
+# Fast windowed correlation
 # ============================================================
 
 def _prefix_sums_1d(x):
@@ -162,17 +161,26 @@ def make_json_serializable(obj):
 # Subject-specific core (leave-one-trial-out)
 # ============================================================
 
-def run_mTRF_subject_specific(nwb_path: str, cfg):
-    fs = cfg["preprocessing"]["target_fs"]
-    window_len = int(cfg["backward_model"]["window_s"] * fs)
-    step = int(cfg["backward_model"]["step_s"] * fs)
+def run_mTRF_subject_specific(nwb_path: str, cfg, window_s_override=None, step_s_override=None):
+    fs = float(cfg["preprocessing"]["target_fs"])
+
+    # CLI overrides (if provided), otherwise config defaults
+    window_s = float(window_s_override) if window_s_override is not None else float(cfg["backward_model"]["window_s"])
+    step_s   = float(step_s_override)   if step_s_override   is not None else float(cfg["backward_model"]["step_s"])
+
+    # robust rounding + avoid zero
+    window_len = max(1, int(round(window_s * fs)))
+    step = max(1, int(round(step_s * fs)))
+
     lags = cfg["backward_model"]["lag_ms"]
     multiband = cfg["backward_model"]["multiband"]
+
+    print(f"[WINDOW] window_s={window_s} step_s={step_s} -> window_len={window_len} step={step} samples @ fs={fs}")
 
     # Load data
     data, nwbfile = DataPreparation.Load_data(nwb_path, merged=True, multiband=multiband)
 
-    # Dataset label fallback from filename (robust)
+    # Dataset label fallback
     p = str(nwb_path).lower()
     if "dtu" in p:
         dataset_label = "DTU"
@@ -181,33 +189,26 @@ def run_mTRF_subject_specific(nwb_path: str, cfg):
     else:
         dataset_label = "unknown"
 
-    # Precompute X and env arrays per trial + per-trial XtX/XtY
     precomputed = []
     XtX_trials = []
     XtY_trials = []
 
-    # We need consistent y dimension
-    # For multiband: y is (T,B); else y is (T,)
     for eeg, env_att, env_unatt in data:
         env_att = ensure_env_shape(env_att, multiband)
         env_unatt = ensure_env_shape(env_unatt, multiband)
 
-        X = create_lag_matrix(eeg, lags, fs)
+        X = create_lag_matrix(eeg, lags, int(fs))
 
         if multiband:
-            y = env_att  # (T,B)
+            y = env_att
             XtY = X.T @ y
         else:
-            y = env_att.reshape(-1)  # (T,)
+            y = env_att.reshape(-1)
             XtY = (X.T @ y).reshape(-1)
 
         XtX = X.T @ X
 
-        precomputed.append({
-            "X": X,
-            "env_att": env_att,
-            "env_unatt": env_unatt,
-        })
+        precomputed.append({"X": X, "env_att": env_att, "env_unatt": env_unatt})
         XtX_trials.append(XtX)
         XtY_trials.append(XtY)
 
@@ -215,19 +216,15 @@ def run_mTRF_subject_specific(nwb_path: str, cfg):
     n_features = XtX_trials[0].shape[0]
     Ydim = XtY_trials[0].shape[1] if multiband else 1
 
-    # Totals over all trials (used for fast leave-one-trial-out)
     XtX_total = np.zeros((n_features, n_features), dtype=float)
-    if multiband:
-        XtY_total = np.zeros((n_features, Ydim), dtype=float)
-    else:
-        XtY_total = np.zeros((n_features,), dtype=float)
+    XtY_total = np.zeros((n_features, Ydim), dtype=float) if multiband else np.zeros((n_features,), dtype=float)
 
     for i in range(n_trials):
         XtX_total += XtX_trials[i]
         XtY_total += XtY_trials[i]
 
     # ========================================================
-    # Lambda tuning: last 20% trials validation (as you had)
+    # Lambda tuning (full-trial Δr, unchanged)
     # ========================================================
     val_fraction = 0.2
     n_val = max(1, int(n_trials * val_fraction))
@@ -246,7 +243,6 @@ def run_mTRF_subject_specific(nwb_path: str, cfg):
     best_lambda = None
     best_score = -np.inf
 
-    # Eigen trick so each lambda is cheap
     eigvals, Q = np.linalg.eigh(XtX_train)
     QtY = Q.T @ XtY_train
 
@@ -282,7 +278,7 @@ def run_mTRF_subject_specific(nwb_path: str, cfg):
     print(f"Best λ from validation = {best_lambda:.1e}")
 
     # ========================================================
-    # Leave-one-trial-out CV using totals (fast; no vstack)
+    # LOOCV
     # ========================================================
     subject_results = []
     decoder_w = None
@@ -292,7 +288,6 @@ def run_mTRF_subject_specific(nwb_path: str, cfg):
         XtY_train_i = XtY_total - XtY_trials[test_idx]
 
         w = np.linalg.solve(XtX_train_i + best_lambda * np.eye(n_features), XtY_train_i)
-
         if decoder_w is None:
             decoder_w = w.copy()
 
@@ -311,7 +306,7 @@ def run_mTRF_subject_specific(nwb_path: str, cfg):
 
         correct_full = bool(corr_att > corr_un)
 
-        # Windowed evaluation (FAST)
+        # Windowed evaluation
         if multiband:
             cors_att = windowed_corr_fast(y_pred, test["env_att"], window_len, step)
             cors_un = windowed_corr_fast(y_pred, test["env_unatt"], window_len, step)
@@ -320,9 +315,11 @@ def run_mTRF_subject_specific(nwb_path: str, cfg):
             cors_un = windowed_corr_fast(y_pred.ravel(), test["env_unatt"].ravel(), window_len, step)
 
         correct_vec = cors_att > cors_un
-        window_acc = float(correct_vec.mean())
+        window_acc = float(correct_vec.mean()) if correct_vec.size > 0 else 0.0
 
         starts = np.arange(0, test["X"].shape[0] - window_len + 1, step, dtype=int)
+        n_windows = int(len(starts))
+
         windows = [
             {"start": float(st / fs), "end": float((st + window_len) / fs), "correct": bool(c)}
             for st, c in zip(starts, correct_vec)
@@ -334,15 +331,17 @@ def run_mTRF_subject_specific(nwb_path: str, cfg):
             "corr_unatt": corr_un,
             "correct_full": bool(correct_full),
             "window_accuracy": window_acc,
-            "windows": windows
+            "n_windows": n_windows,
+            "windows": windows,
         })
 
-        print(f"Trial {test_idx + 1}/{n_trials}: r_att={corr_att:.3f} | r_unatt={corr_un:.3f} | "
-              f"full_correct={correct_full} | win_acc={window_acc:.2f}")
+        print(
+            f"Trial {test_idx + 1}/{n_trials}: r_att={corr_att:.3f} | r_unatt={corr_un:.3f} | "
+            f"full_correct={correct_full} | win_acc={window_acc:.2f} | n_windows={n_windows}"
+        )
 
     subj_acc = float(np.mean([r["correct_full"] for r in subject_results]))
     subj_win_acc = float(np.mean([r["window_accuracy"] for r in subject_results]))
-
     subject_label = os.path.basename(str(nwb_path)).replace(".nwb", "")
 
     print(f"\nSubject — Full-trial acc: {subj_acc:.2f}, Windowed acc: {subj_win_acc:.2f}")
@@ -358,11 +357,17 @@ def run_mTRF_subject_specific(nwb_path: str, cfg):
         "lags": lags,
         "fs": fs,
         "n_channels": data[0][0].shape[1],
+
+        # record actual window used
+        "window_s": window_s,
+        "step_s": step_s,
+        "window_len_samples": int(window_len),
+        "step_samples": int(step),
     }
 
 
 # ============================================================
-# Merge + summarize (same pattern as SI)
+# Merge + summarize
 # ============================================================
 
 def merge_subject_jsons(run_dir):
@@ -391,12 +396,10 @@ def summarize_results(results, cfg, run_dir):
         print(f"Mean full-trial accuracy: {np.mean(full_accs):.2f}")
         print(f"Mean windowed accuracy:  {np.mean(win_accs):.2f}")
 
-        # JSON export (merged)
         json_path = os.path.join(group_dir, f"mTRF_results_{group_name}.json")
         with open(json_path, "w") as f:
             json.dump(make_json_serializable(group_results), f, indent=2)
 
-        # CSV export
         csv_path = os.path.join(group_dir, f"mTRF_summary_{group_name}.csv")
         with open(csv_path, "w", newline="") as f:
             writer = csv.writer(f)
@@ -414,7 +417,6 @@ def summarize_results(results, cfg, run_dir):
             all_win = [r["window_accuracy"] for r in results]
             writer.writerow(["MEAN_ALL", "ALL", float(np.mean(all_full)), float(np.mean(all_win))])
 
-        # Histograms/stats
         all_att = np.concatenate([np.array([t["corr_att"] for t in subj["results"]]) for subj in group_results])
         all_unatt = np.concatenate([np.array([t["corr_unatt"] for t in subj["results"]]) for subj in group_results])
         stats = summaryStats.SummaryStats(all_att, all_unatt)
@@ -425,9 +427,11 @@ def summarize_results(results, cfg, run_dir):
 
         summaryStats.plot_histograms(all_att, all_unatt, os.path.join(group_dir, "Correlations"))
 
-        # Bar plot (your pretty version) + title includes mode and window size
         subjects_lbl = [subj.get("subject_label", subj["subject_id"]) for subj in group_results]
-        window_s = cfg["backward_model"]["window_s"]
+
+        # IMPORTANT: use window_s from results, fallback to cfg
+        window_s = group_results[0].get("window_s", cfg["backward_model"]["window_s"])
+
         plot_subject_bars(
             full_accs,
             win_accs,
@@ -437,10 +441,8 @@ def summarize_results(results, cfg, run_dir):
             window_s=window_s,
         )
 
-    # ALL
     save_group(results, "ALL", run_dir)
 
-    # per dataset
     grouped = {}
     for r in results:
         ds = str(r.get("dataset", "unknown"))
@@ -452,7 +454,7 @@ def summarize_results(results, cfg, run_dir):
 
 
 # ============================================================
-# Main entrypoint (same as SI)
+# Main
 # ============================================================
 
 def main():
@@ -463,8 +465,16 @@ def main():
                         help="Existing run directory. If not provided, a new one is created.")
     parser.add_argument("--merge-only", action="store_true",
                         help="Only merge per-subject JSONs in --run-dir and run summarize_results.")
+
+    # NEW: window overrides (use config when omitted)
+    parser.add_argument("--window-s", type=float, default=None,
+                        help="Override backward_model.window_s (seconds).")
+    parser.add_argument("--step-s", type=float, default=None,
+                        help="Override backward_model.step_s (seconds).")
+
     args = parser.parse_args()
 
+    # IMPORTANT: keep the original behavior for config (this keeps DataPreparation happy)
     cfg = paths.load_config()
     subjects = cfg["subjects"]["all"]
 
@@ -497,7 +507,11 @@ def main():
             raise ValueError(f"--single-subject {test_subj} not found in config subjects list.")
 
         subj_path = paths.subject_eegPP(test_subj)
-        res = run_mTRF_subject_specific(subj_path, cfg)
+        res = run_mTRF_subject_specific(
+            subj_path, cfg,
+            window_s_override=args.window_s,
+            step_s_override=args.step_s,
+        )
 
         json_dir = os.path.join(run_dir, "json")
         os.makedirs(json_dir, exist_ok=True)
@@ -514,7 +528,11 @@ def main():
     all_results = []
     for test_subj in subjects:
         subj_path = paths.subject_eegPP(test_subj)
-        res = run_mTRF_subject_specific(subj_path, cfg)
+        res = run_mTRF_subject_specific(
+            subj_path, cfg,
+            window_s_override=args.window_s,
+            step_s_override=args.step_s,
+        )
         all_results.append(res)
 
     summarize_results(all_results, cfg, run_dir)

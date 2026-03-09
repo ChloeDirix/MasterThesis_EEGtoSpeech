@@ -4,7 +4,6 @@
 import argparse
 import csv
 import json
-import gzip
 import os
 from pathlib import Path
 
@@ -13,7 +12,6 @@ import numpy as np
 import DataPreparation
 from BackwardModel import summaryStats
 from paths import paths
-
 
 from BackwardModel.plots import (
     plot_subject_bars,
@@ -48,11 +46,10 @@ class Standardizer:
 
 def create_lag_matrix(EEG, lags_t, fs):
     """
-    input:
-        EEG: (t,channels)
-        lags_t: (lag_low_ms, lag_high_ms)
-        fs: Hz
-    output: X_lagged: (t, n_lags*channels)
+    EEG: (T, channels)
+    lags_t: (lag_low_ms, lag_high_ms)
+    fs: Hz
+    returns X_lagged: (T, n_lags*channels)
     """
     lag_low, lag_high = lags_t
 
@@ -95,7 +92,6 @@ def _prefix_sums_1d(x):
 
 
 def _seg_sum(p, start, end):
-    # sum on [start, end)
     if end <= 0:
         return 0.0
     if start <= 0:
@@ -148,7 +144,6 @@ def windowed_corr_fast(y_pred, y_true, window_len, step):
             cors[i] = _window_corr_1d_from_prefix(px, pxx, py, pyy, pxy, st, st + window_len)
         return cors
 
-    # multiband
     B = y_pred.shape[1]
     cors = np.empty((len(starts), B), dtype=float)
     for b in range(B):
@@ -163,7 +158,7 @@ def windowed_corr_fast(y_pred, y_true, window_len, step):
 
 
 # =========================
-# Data loading
+# Data loading helper
 # =========================
 
 def load_subject_block(nwb_path, lags, fs, multiband, eeg_std=None, y_std=None):
@@ -188,47 +183,41 @@ def load_subject_block(nwb_path, lags, fs, multiband, eeg_std=None, y_std=None):
         X_list.append(create_lag_matrix(eeg, lags, fs))
         y_list.append(y)
 
-    X = np.vstack(X_list)
-    y = np.vstack(y_list)
-    return X, y
+    return np.vstack(X_list), np.vstack(y_list)
 
 
 # =========================
-# Core: run one LOSO fold
+# Core: one LOSO fold
 # =========================
 
-def run_mTRF_subject(train_paths, test_path, cfg):
-    # -------------------------
-    # Load config parameters
-    # -------------------------
-    fs = cfg["preprocessing"]["target_fs"]
-    window_len = int(cfg["backward_model"]["window_s"] * fs)
-    step = int(cfg["backward_model"]["step_s"] * fs)
+def run_mTRF_subject(train_paths, test_path, cfg, window_s_override=None, step_s_override=None):
+    fs = float(cfg["preprocessing"]["target_fs"])
+
+    # overrides
+    window_s = float(window_s_override) if window_s_override is not None else float(cfg["backward_model"]["window_s"])
+    step_s   = float(step_s_override)   if step_s_override   is not None else float(cfg["backward_model"]["step_s"])
+
+    window_len = max(1, int(round(window_s * fs)))
+    step = max(1, int(round(step_s * fs)))
+
     lags = cfg["backward_model"]["lag_ms"]
     multiband = cfg["backward_model"]["multiband"]
 
+    print(f"[WINDOW] window_s={window_s} step_s={step_s} -> window_len={window_len} step={step} samples @ fs={fs}")
     print(f"Loading {len(train_paths)} training subjects...")
 
-    # -------------------------
-    # Split train/val for lambda tuning
-    # -------------------------
+    # ----- train/val split for λ tuning -----
     val_fraction = 0.2
     n_subjects = len(train_paths)
     n_val = max(1, int(n_subjects * val_fraction))
-
-    # keep this deterministic (last subjects = validation)
     val_paths = train_paths[-n_val:]
     tr_paths = train_paths[:-n_val]
-
     if len(tr_paths) == 0:
         raise ValueError("Not enough training subjects after train/val split.")
 
-    # -------------------------
-    # Fit standardizers on TRAIN subjects only
-    # -------------------------
+    # ----- fit standardizers on TRAIN subjects only -----
     eeg_accum = []
     y_accum = []
-
     for p in tr_paths:
         data_subj, _ = DataPreparation.Load_data(p, merged=True, multiband=multiband)
         for eeg, env_att, _ in data_subj:
@@ -239,56 +228,42 @@ def run_mTRF_subject(train_paths, test_path, cfg):
     eeg_std = Standardizer().fit(np.vstack(eeg_accum))
     y_std = Standardizer().fit(np.vstack(y_accum))
 
-    # -------------------------
-    # Determine feature dimension
-    # -------------------------
-    X_first, y_first = load_subject_block(tr_paths[0], lags, fs, multiband, eeg_std, y_std)
+    # ----- determine feature dimension -----
+    X_first, y_first = load_subject_block(tr_paths[0], lags, int(fs), multiband, eeg_std, y_std)
     n_features = X_first.shape[1]
-    Ydim = y_first.shape[1]  # always 2D in your loader (multiband -> B, else -> 1)
+    Ydim = y_first.shape[1]
 
-    # -------------------------
-    # Precompute XtX, XtY on training set (excluding val)
-    # -------------------------
+    # ----- precompute XtX, XtY on training (excluding val) -----
     XtX = (X_first.T @ X_first).astype(float)
-    XtY = (X_first.T @ y_first).astype(float)  # (n_features, Ydim)
+    XtY = (X_first.T @ y_first).astype(float)
 
     for p in tr_paths[1:]:
-        Xs, ys = load_subject_block(p, lags, fs, multiband, eeg_std, y_std)
+        Xs, ys = load_subject_block(p, lags, int(fs), multiband, eeg_std, y_std)
         XtX += Xs.T @ Xs
         XtY += Xs.T @ ys
 
-    # -------------------------
-    # Preload validation blocks
-    # -------------------------
+    # ----- preload validation blocks -----
     print("Tuning λ ...")
-    val_blocks = [load_subject_block(p, lags, fs, multiband, eeg_std, y_std) for p in val_paths]
+    val_blocks = [load_subject_block(p, lags, int(fs), multiband, eeg_std, y_std) for p in val_paths]
 
-    # -------------------------
-    # Lambda tuning (fast via eigendecomposition)
-    # -------------------------
+    # ----- λ tuning via eigendecomposition -----
     lambdas = np.logspace(0, 6, 7)
     best_lambda = None
     best_score = -np.inf
 
-    eigvals, Q = np.linalg.eigh(XtX)  # XtX symmetric PSD
-    QtY = Q.T @ XtY                   # (n_features, Ydim)
+    eigvals, Q = np.linalg.eigh(XtX)
+    QtY = Q.T @ XtY
 
     for lam in lambdas:
-        # ridge solution using eigendecomp
-        w = Q @ (QtY / (eigvals[:, None] + lam))  # (n_features, Ydim)
+        w = Q @ (QtY / (eigvals[:, None] + lam))
 
-        # evaluate on validation subjects (mean corr with attended)
         scores = []
         for Xv, yv in val_blocks:
-            y_pred = ridge_predict(Xv, w)  # (T, Ydim)
-
-            # correlation (full block)
+            y_pred = ridge_predict(Xv, w)
             if Ydim > 1:
                 r = np.mean([np.corrcoef(y_pred[:, b], yv[:, b])[0, 1] for b in range(Ydim)])
             else:
                 r = np.corrcoef(y_pred.ravel(), yv.ravel())[0, 1]
-
-            # handle NaNs (can happen if variance is ~0)
             if np.isnan(r):
                 r = 0.0
             scores.append(float(r))
@@ -301,23 +276,19 @@ def run_mTRF_subject(train_paths, test_path, cfg):
 
     print(f"Best λ = {best_lambda}")
 
-    # -------------------------
-    # Train on ALL training subjects (train_paths)
-    # -------------------------
+    # ----- train on ALL training subjects -----
     XtX = np.zeros((n_features, n_features), dtype=float)
     XtY = np.zeros((n_features, Ydim), dtype=float)
 
     for p in train_paths:
-        Xs, ys = load_subject_block(p, lags, fs, multiband, eeg_std, y_std)
+        Xs, ys = load_subject_block(p, lags, int(fs), multiband, eeg_std, y_std)
         XtX += Xs.T @ Xs
         XtY += Xs.T @ ys
 
     w = np.linalg.solve(XtX + best_lambda * np.eye(n_features), XtY)
     decoder_w = w.copy()
 
-    # -------------------------
-    # Determine dataset label (from path)
-    # -------------------------
+    # ----- dataset label -----
     dataset_label = "unknown"
     pth = str(test_path).lower()
     if "dtu" in pth:
@@ -325,25 +296,13 @@ def run_mTRF_subject(train_paths, test_path, cfg):
     elif "das" in pth:
         dataset_label = "DAS"
 
-    # -------------------------
-    # Evaluate on test subject (with META)
-    # -------------------------
+    # ----- evaluate on test subject -----
     test_data, test_meta, test_nwb = DataPreparation.Load_data(
         test_path, merged=True, multiband=multiband, return_meta=True
     )
 
-    # ---- Sanity checks for DTU metadata ----
-    if dataset_label == "DTU":
-        print("Example meta rows:", test_meta[:3])
-
-        conds = [m.get("acoustic_condition", -1) for m in test_meta]
-        uniq, cnt = np.unique(conds, return_counts=True)
-        print("DTU condition counts in this test subject:", dict(zip(uniq.tolist(), cnt.tolist())))
-
-
     results = []
     for ti, (eeg, env_att, env_unatt) in enumerate(test_data):
-        # --- standardize with TRAIN stats ---
         eeg = eeg_std.transform(eeg)
 
         y_att = env_att if multiband else env_att.reshape(-1, 1)
@@ -352,14 +311,11 @@ def run_mTRF_subject(train_paths, test_path, cfg):
         y_att = y_std.transform(y_att)
         y_un  = y_std.transform(y_un)
 
-        # --- build lag matrix, predict ---
-        X = create_lag_matrix(eeg, lags, fs)
-        y_pred = X @ w  # (T, Ydim)
+        X = create_lag_matrix(eeg, lags, int(fs))
+        y_pred = X @ w
 
-        # --- condition (DTU only; DAS -> -1) ---
         cond = int(test_meta[ti].get("acoustic_condition", -1)) if isinstance(test_meta, list) else -1
 
-        # --- full-trial correlations ---
         if Ydim > 1:
             corr_att = float(np.mean([np.corrcoef(y_pred[:, b], y_att[:, b])[0, 1] for b in range(Ydim)]))
             corr_un  = float(np.mean([np.corrcoef(y_pred[:, b], y_un[:, b])[0, 1]  for b in range(Ydim)]))
@@ -372,7 +328,6 @@ def run_mTRF_subject(train_paths, test_path, cfg):
 
         correct_full = bool(corr_att > corr_un)
 
-        # --- windowed evaluation ---
         if Ydim > 1:
             cors_att = windowed_corr_fast(y_pred, y_att, window_len, step)
             cors_un  = windowed_corr_fast(y_pred, y_un,  window_len, step)
@@ -381,9 +336,11 @@ def run_mTRF_subject(train_paths, test_path, cfg):
             cors_un  = windowed_corr_fast(y_pred.ravel(), y_un.ravel(),  window_len, step)
 
         correct_vec = cors_att > cors_un
-        window_acc = float(np.mean(correct_vec))
+        window_acc = float(np.mean(correct_vec)) if correct_vec.size > 0 else 0.0
 
         starts = np.arange(0, X.shape[0] - window_len + 1, step, dtype=int)
+        n_windows = int(len(starts))
+
         win_list = [
             {"start": float(st / fs), "end": float((st + window_len) / fs), "correct": bool(c)}
             for st, c in zip(starts, correct_vec)
@@ -396,12 +353,14 @@ def run_mTRF_subject(train_paths, test_path, cfg):
             "corr_unatt": corr_un,
             "correct_full": correct_full,
             "window_accuracy": window_acc,
-            "windows": win_list
+            "n_windows": n_windows,
+            "windows": win_list,
         })
 
         print(
             f"Trial {ti + 1}/{len(test_data)} | cond={cond}: "
-            f"r_att={corr_att:.3f} | r_unatt={corr_un:.3f} | {correct_full} | win_acc={window_acc:.2f}"
+            f"r_att={corr_att:.3f} | r_unatt={corr_un:.3f} | {correct_full} | "
+            f"win_acc={window_acc:.2f} | n_windows={n_windows}"
         )
 
     full_acc = float(np.mean([r["correct_full"] for r in results]))
@@ -410,25 +369,6 @@ def run_mTRF_subject(train_paths, test_path, cfg):
     subject_label = os.path.basename(str(test_path)).replace(".nwb", "")
     print(f"Subject {test_nwb.identifier}: Full acc = {full_acc:.2f} | Window acc = {win_acc:.2f}")
 
-    # -------------------------
-    # DTU per-condition report (subject-level)
-    # -------------------------
-    if dataset_label == "DTU":
-        conds = sorted(set(r["acoustic_condition"] for r in results))
-        print("Per acoustic condition (this subject):")
-        for c in conds:
-            if c < 0:
-                continue
-            rs = [r for r in results if r["acoustic_condition"] == c]
-            if not rs:
-                continue
-            c_full = float(np.mean([r["correct_full"] for r in rs]))
-            c_win  = float(np.mean([r["window_accuracy"] for r in rs]))
-            print(f"  condition {c}: full={c_full:.2f} | window={c_win:.2f} | n_trials={len(rs)}")
-
-    # -------------------------
-    # Return full fold results
-    # -------------------------
     return {
         "subject_id": test_nwb.identifier,
         "subject_label": subject_label,
@@ -440,17 +380,18 @@ def run_mTRF_subject(train_paths, test_path, cfg):
         "lags": lags,
         "fs": fs,
         "n_channels": test_data[0][0].shape[1],
+
+        # store actual window used
+        "window_s": window_s,
+        "step_s": step_s,
+        "window_len_samples": int(window_len),
+        "step_samples": int(step),
     }
 
-    
 
 # =========================
 # JSON serialization
 # =========================
-def write_json_gz(path, obj, indent=None):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with gzip.open(path, "wt", encoding="utf-8") as f:
-        json.dump(obj, f, indent=indent)
 
 def make_json_serializable(obj):
     if isinstance(obj, np.ndarray):
@@ -484,8 +425,8 @@ def summarize_results(results, cfg, run_dir):
         print(f"Mean windowed accuracy:  {np.mean(win_accs):.2f}")
 
         json_path = os.path.join(group_dir, f"mTRF_results_{group_name}.json")
-        with open(json_path, "w") as f:
-            json.dump(make_json_serializable(group_results), f, indent=4)
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(make_json_serializable(group_results), f, indent=2)
 
         csv_path = os.path.join(group_dir, f"mTRF_summary_{group_name}.csv")
         with open(csv_path, "w", newline="") as f:
@@ -500,36 +441,31 @@ def summarize_results(results, cfg, run_dir):
                     subj["window_accuracy"],
                 ])
 
-            writer.writerow([
-                f"MEAN_{group_name}",
-                group_name,
-                float(np.mean(full_accs)),
-                float(np.mean(win_accs)),
-            ])
+            writer.writerow([f"MEAN_{group_name}", group_name, float(np.mean(full_accs)), float(np.mean(win_accs))])
 
             all_full = [r["full_accuracy"] for r in results]
             all_win = [r["window_accuracy"] for r in results]
-            writer.writerow([
-                "MEAN_ALL",
-                "ALL",
-                float(np.mean(all_full)),
-                float(np.mean(all_win)),
-            ])
+            writer.writerow(["MEAN_ALL", "ALL", float(np.mean(all_full)), float(np.mean(all_win))])
 
         all_att = np.concatenate([np.array([t["corr_att"] for t in subj["results"]]) for subj in group_results])
         all_unatt = np.concatenate([np.array([t["corr_unatt"] for t in subj["results"]]) for subj in group_results])
         stats = summaryStats.SummaryStats(all_att, all_unatt)
 
         stats_path = os.path.join(group_dir, f"stats_{group_name}.json")
-        with open(stats_path, "w") as f:
-            json.dump(stats, f, indent=4)
+        with open(stats_path, "w", encoding="utf-8") as f:
+            json.dump(stats, f, indent=2)
 
         summaryStats.plot_histograms(all_att, all_unatt, os.path.join(group_dir, "Correlations"))
 
         subjects_lbl = [subj.get("subject_label", subj["subject_id"]) for subj in group_results]
-        window_s = cfg["backward_model"]["window_s"]
-        plot_subject_bars(full_accs, win_accs, subjects_lbl, os.path.join(group_dir, "Accuracy"), mode="Subject-independent",window_s=window_s)
+        window_s = group_results[0].get("window_s", cfg["backward_model"]["window_s"])
 
+        plot_subject_bars(
+            full_accs, win_accs, subjects_lbl,
+            os.path.join(group_dir, "Accuracy"),
+            mode="Subject-independent",
+            window_s=window_s,
+        )
 
     save_group(results, "ALL", run_dir)
 
@@ -540,8 +476,7 @@ def summarize_results(results, cfg, run_dir):
 
     if len(grouped) > 1:
         for ds, group_results in grouped.items():
-            group_dir = os.path.join(run_dir, ds)
-            save_group(group_results, ds, group_dir)
+            save_group(group_results, ds, os.path.join(run_dir, ds))
 
 
 # =========================
@@ -553,17 +488,14 @@ def merge_subject_jsons(run_dir):
     files = sorted(run_dir.glob("json/*.json"))
     results = []
     for fp in files:
-        import gzip
         with open(fp, "r", encoding="utf-8") as f:
             results.append(json.load(f))
     return results
 
 
-
 # =========================
-# Main entrypoint
+# Mode helpers
 # =========================
-
 
 def _dataset_of(subj_name: str) -> str:
     s = subj_name.lower()
@@ -575,16 +507,6 @@ def _dataset_of(subj_name: str) -> str:
 
 
 def _select_subjects_by_mode(all_subjects, test_subj, mode):
-    """
-    Returns train_subjects list based on mode.
-
-    mode == "separate":
-        - DTU test -> train only on DTU (excluding test)
-        - DAS test -> train only on DAS (excluding test)
-
-    mode == "mixed":
-        - train on ALL subjects except test
-    """
     test_ds = _dataset_of(test_subj)
 
     if mode == "separate":
@@ -592,13 +514,17 @@ def _select_subjects_by_mode(all_subjects, test_subj, mode):
     elif mode == "mixed":
         train_subjects = [s for s in all_subjects if s != test_subj]
     else:
-        raise ValueError(f"Unknown SI_mode: {mode}")
+        raise ValueError(f"Unknown SI mode: {mode}")
 
     if len(train_subjects) == 0:
         raise ValueError(f"No training subjects selected for test subject {test_subj} (mode={mode}).")
 
     return train_subjects
 
+
+# =========================
+# Main
+# =========================
 
 def main():
     parser = argparse.ArgumentParser()
@@ -608,11 +534,25 @@ def main():
                         help="Existing run directory. If not provided, a new one is created.")
     parser.add_argument("--merge-only", action="store_true",
                         help="Only merge per-subject JSONs in --run-dir and run summarize_results.")
+
+    parser.add_argument("--mode", type=str, default=None, choices=["mixed", "separate"],
+                        help="mixed=all except test, separate=same dataset only. If omitted, cfg SI_mode or 'mixed'.")
+
+    # window overrides
+    parser.add_argument("--window-s", type=float, default=None,
+                        help="Override backward_model.window_s (seconds).")
+    parser.add_argument("--step-s", type=float, default=None,
+                        help="Override backward_model.step_s (seconds).")
+
     args = parser.parse_args()
 
+    # IMPORTANT: keep original config behavior
     cfg = paths.load_config()
-    mode = cfg["SI_mode"]["mode"]
     subjects = cfg["subjects"]["all"]
+
+    mode = args.mode
+    if mode is None:
+        mode = cfg.get("backward_model", {}).get("SI_mode", "mixed")
 
     print("\n========== RUNNING LOSO BACKWARD MODEL ==========")
     print(f"Mode: {mode}")
@@ -638,11 +578,7 @@ def main():
         return
 
     def run_one_subject(test_subj):
-        if test_subj not in subjects:
-            raise ValueError(f"Subject {test_subj} not in config subjects list.")
-
         test_path = paths.subject_eegPP(test_subj)
-
         train_subjects = _select_subjects_by_mode(subjects, test_subj, mode)
         train_paths = [paths.subject_eegPP(s) for s in train_subjects]
 
@@ -650,23 +586,25 @@ def main():
         print(f"Training on {len(train_subjects)} subjects: "
               f"{train_subjects[:5]}{' ...' if len(train_subjects) > 5 else ''}")
 
-        return run_mTRF_subject(train_paths, test_path, cfg)
+        return run_mTRF_subject(
+            train_paths, test_path, cfg,
+            window_s_override=args.window_s,
+            step_s_override=args.step_s,
+        )
 
-    # ---- single subject mode ----
     if args.single_subject is not None:
         res = run_one_subject(args.single_subject)
 
-        JSON_dir = os.path.join(run_dir, "json")
-        os.makedirs(JSON_dir, exist_ok=True)
-        subject_json = os.path.join(JSON_dir, f"{args.single_subject}.json")
-        with open(subject_json, "w") as f:
+        json_dir = os.path.join(run_dir, "json")
+        os.makedirs(json_dir, exist_ok=True)
+        subject_json = os.path.join(json_dir, f"{args.single_subject}.json")
+        with open(subject_json, "w", encoding="utf-8") as f:
             json.dump(make_json_serializable(res), f, indent=2)
 
         print(f"✓ Finished subject {args.single_subject}")
         print(f"✓ Saved: {subject_json}")
         return
 
-    # ---- full LOSO ----
     all_results = []
     for i, test_subj in enumerate(subjects, start=1):
         print(f"\n===============================================")
@@ -677,8 +615,8 @@ def main():
         all_results.append(res)
 
         tmp_json = os.path.join(run_dir, f"mTRF_partial_{i}.json")
-        with open(tmp_json, "w") as f:
-            json.dump(make_json_serializable(all_results), f, indent=4)
+        with open(tmp_json, "w", encoding="utf-8") as f:
+            json.dump(make_json_serializable(all_results), f, indent=2)
 
         print(f"✓ Finished subject {test_subj}")
         print(f"✓ Partial results saved to: {tmp_json}\n")
@@ -690,4 +628,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

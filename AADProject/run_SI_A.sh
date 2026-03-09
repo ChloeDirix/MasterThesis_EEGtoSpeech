@@ -14,6 +14,8 @@
 
 source /user/leuven/373/vsc37381/data/anaconda3/bin/activate AADProjectEnv
 
+win_len=20
+
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export OPENBLAS_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK
@@ -25,12 +27,19 @@ mkdir -p logs/SI_$SLURM_ARRAY_JOB_ID
 CODE_DIR="$VSC_DATA/MasterThesis_EEGtoSpeech/AADProject"
 export PYTHONPATH="$CODE_DIR:$PYTHONPATH"
 
-# Scratch
+
+
 RUN_DIR="$VSC_SCRATCH/Results_Lin/SI/run_${SLURM_ARRAY_JOB_ID}"
+
 mkdir -p "$RUN_DIR"
-mkdir -p /scratch/leuven/373/vsc37381/slurm_logs
+
 
 cd "$CODE_DIR"
+
+
+cp -f "$CODE_DIR/config.yaml" "$RUN_DIR/config.yaml"
+export AAD_CONFIG="$RUN_DIR/config.yaml"
+
 
 SUBJECT=$(python - <<'PY'
 import yaml, os, sys
@@ -45,15 +54,14 @@ PY
 )
 
 # Snapshot config once
-if [ ! -f "$RUN_DIR/config.yaml" ]; then
-  cp "$CODE_DIR/config.yaml" "$RUN_DIR/config.yaml"
-fi
 
 echo "Array task $SLURM_ARRAY_TASK_ID running subject: $SUBJECT"
 echo "Run dir (scratch): $RUN_DIR"
 
 srun --cpu-bind=cores python BackwardModel/RunBackwardModel_SI.py \
   --single-subject "$SUBJECT" \
-  --run-dir "$RUN_DIR"
+  --run-dir "$RUN_DIR" \
+  --window-s "$win_len" \
+  --mode "separate"
 
 echo "Done."

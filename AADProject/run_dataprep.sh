@@ -36,8 +36,8 @@ rsync -avh "$CODE_DIR/config.yaml" "$PROJECT_ROOT/"
 
 
 # create output folders on scratch
-mkdir -p "$PROJECT_ROOT/Data_InputModel/EEG_PP"
-mkdir -p "$PROJECT_ROOT/Data_InputModel/Envelopes"
+mkdir -p "$PROJECT_ROOT/Data_InputModelFine/EEG_PP"
+mkdir -p "$PROJECT_ROOT/Data_InputModelFine/Envelopes"
 
 # ---------------- RUN ----------------
 cd "$CODE_DIR"
@@ -49,6 +49,6 @@ echo "Preprocessing finished."
 
 # ---------------- STAGE-OUT ----------------
 #echo "Copying NWB outputs back to DATA..."
-rsync -avh "$PROJECT_ROOT/Data_InputModel/" "$CODE_DIR/Data_InputModel/"
+#rsync -avh "$PROJECT_ROOT/Data_InputModelFine/" "$CODE_DIR/Data_InputModelFine/"
 
 echo "Done."

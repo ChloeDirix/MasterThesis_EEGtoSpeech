@@ -7,8 +7,8 @@ Datasets:
   DAS: True
 
 #preprocessing?
-Do_envelope_extraction: False
-Do_preprocessing: True
+Do_envelope_extraction: True
+Do_preprocessing: False
 
 
 
@@ -27,25 +27,33 @@ subjects_DTU:
 
 subjects:
   all: [S1_DAS,S2_DAS,S3_DAS,S4_DAS,S5_DAS,S6_DAS,S7_DAS,S8_DAS,S9_DAS,S10_DAS,S11_DAS,S12_DAS,S13_DAS,S14_DAS,S15_DAS,S16_DAS,S1_DTU,S2_DTU,S3_DTU,S4_DTU,S5_DTU,S6_DTU,S7_DTU,S8_DTU,S9_DTU,S10_DTU,S11_DTU,S12_DTU,S13_DTU,S14_DTU,S15_DTU,S16_DTU,S17_DTU,S18_DTU]
-  small: [S10_DTU,S10_DAS]
+  DAS: [S1_DAS,S2_DAS,S3_DAS,S4_DAS,S5_DAS,S6_DAS,S7_DAS,S8_DAS,S9_DAS,S10_DAS,S11_DAS,S12_DAS,S13_DAS,S14_DAS,S15_DAS,S16_DAS]
+  DTU: [S1_DTU,S2_DTU,S3_DTU,S4_DTU,S5_DTU,S6_DTU,S7_DTU,S8_DTU,S9_DTU,S10_DTU,S11_DTU,S12_DTU,S13_DTU,S14_DTU,S15_DTU,S16_DTU,S17_DTU,S18_DTU]
+  small: [S1_DAS,S10_DTU,S10_DAS]
   
-use_subjects: "small"
+use_subjects: "DAS" # "all" or "small" (for quick testing)
 
 SI_mode:
   mode: "separate"     # "separate" or "mixed" (datasets separate or merged for training)
   
+
+splits:
+  mode: "single"     # "single" | "loso"
+  single:
+    train: [S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16]
+    val: [S1]
 
 
 # ============================================================
 # 3. Preprocessing settings
 # ============================================================
 preprocessing:
-  target_fs: 32   #Hz -- min 18Hz
-  band: [1, 9]    #Hz
+  target_fs: 128   #Hz -- min 2 bandwidth
+  band: [1, 32]    #Hz
   rereference_method: "mean"
   plotting:
     enable: false
-    seconds: 30
+    seconds: 20
     show_preprocessing_steps: False
   target_n_channels: 64
 
@@ -69,33 +77,47 @@ backward_model:
 DeepLearning:
   data_windows:
     window_len_s: 5.0
-    window_step_s: 2.5
+    window_step_s: 2
+
+  loss:
+    name: "infoNCE"         # or "triplet" or infoNCE
+    margin: 0.2             # logistic_rank could also use it
+    
+    temperature: 0.07
+    normalize: True 
 
   train:
-    batch_size: 8
-    num_epochs: 20
-    learning_rate: 3e-4
-    weight_decay: 1e-4
+    batch_size: 16            #higher: better training stability, lower: less memory problems
+    num_epochs: 50            
+    learning_rate: 1e-4       #[5e-5,1e-4,2e-4,3e-4]: do sweep
+    weight_decay: 1e-4        # higher: less overfitting, lower:less underfitting
     patience: 8
+    sampler_mode: "dataset"
 
   model:
-    architecture: "w_transformer"   #or wo_transformer
     eeg_encoder:
-      d_model: 64
-      n_heads: 4
-      n_layers: 3
+      d_model: 128          # lower:underfit, higher:overfit
+      n_heads: 8            # Rule of thumb: d_model % n_heads == 0
+      n_layers: 4           # higher: more overfit, lower:more underfit
+      dropout: 0.1
+      conv_kernel: 31
+      pool: "attn"
+      out_dim: 128
+      use_conv: true
     audio_encoder:
-      d_model: 64
-      n_heads: 4
-      n_layers: 1
+      d_model: 128
+      conv_kernel: 31
+      dropout: 0.1
+      out_dim: 128
+      use_conv: true
     contrastive:
-      temperature: 0.07
+      temperature: 0.2     # higher: unstable, lower: stable (controls hardness of the softmax)
 
   quick_test:
     enable: False
     max_windows: 200
     max_epochs: 3
-    use_subjects: "debug"
+    use_subjects: "small"
 
 
 

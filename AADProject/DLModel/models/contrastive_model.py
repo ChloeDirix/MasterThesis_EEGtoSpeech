@@ -1,24 +1,6 @@
-"""
-
-Wraps both encoders and defines forward(eeg, stimuli)
-
-Inputs (batched):
-- EEG: [B, t, c_eeg]
-- Stimuli: [B, K=2, t, c_stim]
-
-Process:
-- Encode EEG: z_eeg = eeg_encoder(eeg) → [B, D]
-- Flatten stimuli: [B*K, T, C_stim] → audio encoder → [B*K, D]
-- Reshape back → [B, K, D]
-- Compute similarities: sim[b, k] = similarity(z_eeg[b], z_audio[b, k]) → [B, K]
-
-
-"""
-
-
 import torch.nn as nn
 import torch.nn.functional as F
-from sympy.printing.pytorch import torch
+import torch
 
 from DLModel.models.encoder import EEGEncoder, AudioEncoder
 
@@ -30,34 +12,55 @@ class ContrastiveAADModel(nn.Module):
     Stim input:   [B, K, T, C_stim]
     Output:       logits [B, K]
     """
-    def __init__(self, eeg_input_dim, stim_input_dim, d_model=64, n_eeg_layers=4, n_stim_layers=2, n_heads=4, temperature=0.07):
+    def __init__(self, dl_cfg,eeg_input_dim, stim_input_dim):
         super().__init__()
+        self.dl_cfg=dl_cfg
+        self.temperature = self.dl_cfg["model"]["contrastive"]["temperature"]
+        self.scale = 1.0 / self.temperature
 
-        self.temperature = temperature
-        self.scale = 1.0 / temperature
-
+       
         # Create encoders
         self.eeg_encoder = EEGEncoder(
             input_dim=eeg_input_dim,
-            d_model=d_model,
-            n_layers=n_eeg_layers,
-            n_heads=n_heads
+            d_model=self.dl_cfg["model"]["eeg_encoder"]["d_model"],
+            n_layers=self.dl_cfg["model"]["eeg_encoder"]["n_layers"],
+            n_heads=self.dl_cfg["model"]["eeg_encoder"]["n_heads"],
+            dropout=self.dl_cfg["model"]["eeg_encoder"]["dropout"],
+            conv_kernel=self.dl_cfg["model"]["eeg_encoder"]["conv_kernel"],
+            out_dim=self.dl_cfg["model"]["eeg_encoder"]["out_dim"],
+            pool=self.dl_cfg["model"]["eeg_encoder"]["pool"],
+            use_conv=self.dl_cfg["model"]["eeg_encoder"].get("use_conv", True),
         )
 
         self.audio_encoder = AudioEncoder(
             input_dim=stim_input_dim,
-            d_model=d_model,
-            n_layers=n_stim_layers,
-            n_heads=n_heads
+            d_model=self.dl_cfg["model"]["audio_encoder"]["d_model"],
+            dropout=self.dl_cfg["model"]["audio_encoder"]["dropout"],
+            conv_kernel=self.dl_cfg["model"]["audio_encoder"]["conv_kernel"],
+            out_dim=self.dl_cfg["model"]["audio_encoder"]["out_dim"],
+            use_conv=self.dl_cfg["model"]["audio_encoder"].get("use_conv", True),
         )
+        
+    
+    # ----------------
+    # --- encoders ---
+    # ----------------
 
-
-
-    def get_embeddings(self, eeg, stim):
-        z_eeg = self.eeg_encoder(eeg)
-        z_stim = self.audio_encoder(stim)
+    def get_pair_embeddings(self, eeg, stimuli):
+        """
+        eeg:     [B, T, C_eeg]
+        stimuli: [B, K, T, C_stim]  (K=2)
+        returns:
+        z_eeg:  [B, D]
+        z_stim: [B, K, D]
+        """
+        B, K, T, C = stimuli.shape
+        z_eeg = self.eeg_encoder(eeg)                 # [B,D]
+        stim_flat = stimuli.reshape(B * K, T, C)
+        z_stim = self.audio_encoder(stim_flat).reshape(B, K, -1)  # [B,K,D]
         return z_eeg, z_stim
 
+    
     def forward(self, eeg, stimuli):
         """
         eeg:      [B, T, C_eeg]
@@ -76,6 +79,7 @@ class ContrastiveAADModel(nn.Module):
                                                   # z_stim[b][0] = embedding of matched stimulus
                                                   # z_stim[b][1] = embedding of mismatched stimulus
 
+
         # ---- Cosine similarities ----
         z_eeg_norm = F.normalize(z_eeg, dim=-1)
         z_stim_norm = F.normalize(z_stim, dim=-1)
@@ -90,9 +94,18 @@ class ContrastiveAADModel(nn.Module):
         return logits
 
 
-    # ------------------------------------------------------
+
+
+
+
+
+
+
+    # ----------------
+    # ---- losses ----
+    # ----------------
+   
     # contrastive loss function
-    # ------------------------------------------------------
     def contrastive_loss(self, logits, att):
         """
         logits: [B, K]
@@ -133,24 +146,3 @@ class ContrastiveAADModel(nn.Module):
         loss = (loss_e2s + loss_s2e) / 2
         return loss
 
-if __name__ == "__main__":
-    from DLModel import datasets
-    from paths import paths
-    cfg = paths.load_config()
-    nwb_paths = [paths.subject_eegPP("S1")]
-
-    ds = datasets.AADDataset(nwb_paths, cfg, multiband=True)
-    loader = datasets.DataLoader(ds, batch_size=4, shuffle=True)
-
-    eeg, stim, att = next(iter(loader))
-    print(eeg.shape, stim.shape, att)
-
-    model = ContrastiveAADModel(
-        eeg_input_dim=eeg.shape[-1],
-        stim_input_dim=stim.shape[-1],
-        d_model=64
-    )
-
-    logits = model(eeg, stim)
-    print("Logits shape:", logits.shape)
-    print(logits)
