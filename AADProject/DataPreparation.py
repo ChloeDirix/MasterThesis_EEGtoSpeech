@@ -1,7 +1,6 @@
 # datapreparation.py
 import os
 import numpy as np
-from scipy.stats import zscore
 from pynwb import NWBHDF5IO
 
 from paths import paths
@@ -19,8 +18,11 @@ def Preprocess_Data():
     do_env = cfg["Do_envelope_extraction"]
     do_eeg = cfg["Do_preprocessing"]
 
-    os.makedirs(paths.EEG_PP, exist_ok=True)
-    os.makedirs(paths.ENVELOPES, exist_ok=True)
+    output_dir=paths.data_input_model_dir()
+    print(f"Saving preprocessed data to: {output_dir}")
+
+    os.makedirs(os.path.join(output_dir, "EEG_PP"), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "Envelopes"), exist_ok=True)
 
     for dataset, use in cfg["Datasets"].items():
         if not use:
@@ -60,15 +62,34 @@ def Preprocess_Data():
 # -------------------------------------------------------------------------------
 #                             Load Data
 # -------------------------------------------------------------------------------
-def Load_data(nwb_path, merged=True, multiband=True, return_meta=False):
+def Load_data(
+    nwb_path,
+    merged=False,
+    sum_subbands=True,
+    multiband=None,
+    return_meta=False,
+):
+    """
+    Main data loader.
+
+    Preferred behavior:
+        sum_subbands=True  -> return single summed envelope, shape (T, 1)
+        sum_subbands=False -> return separate subbands, shape (T, B)
+    """
+
     data = []
     meta = []
+
     with NWBHDF5IO(nwb_path, "r") as io:
         nwbfile = io.read()
         trials_df = nwbfile.trials.to_dataframe()
 
         for _, tr in trials_df.iterrows():
-            eeg, env_att, env_unatt = load_single_trial(nwbfile, tr, multiband)
+            eeg, env_att, env_unatt = load_single_trial(
+                nwbfile,
+                tr,
+                sum_subbands=sum_subbands,
+            )
             data.append((eeg, env_att, env_unatt))
 
             if return_meta:
@@ -81,50 +102,46 @@ def Load_data(nwb_path, merged=True, multiband=True, return_meta=False):
 
     if merged:
         data = merge_repetition_trials(trials_df, data)
-        # NOTE: if you merge, meta needs merging too; easiest is: for per-condition analysis, run with merged=False
+        
     return (data, meta, nwbfile) if return_meta else (data, nwbfile)
-
 
 
 # ==============================================================================
 #                           INTERNAL TRIAL PROCESSING
 # ==============================================================================
-def load_single_trial(nwbfile, tr, multiband):
+def load_single_trial(nwbfile, tr, sum_subbands=True):
     """Load EEG + attended/unattended envelopes for one trial."""
-    tid = int(tr["trial_index"]) 
+    tid = int(tr["trial_index"])
     pre_key = f"trial_{tid}_EEG_preprocessed"
 
     # ---------------- EEG ----------------
     eeg = nwbfile.processing["eeg_preprocessed"].data_interfaces[pre_key].data[:]
-
-    # Drop channels with zero-variance (flat channels)
-    #eeg = eeg[:, np.std(eeg, axis=0) > 0]
-    eeg = np.asarray(eeg)
+    eeg = np.asarray(eeg, dtype=np.float32)
 
     # Keep only scalp EEG
     cfg = paths.load_config()
-    if eeg.shape[1] >= cfg["preprocessing"]["target_n_channels"]:
-        eeg = eeg[:, :cfg["preprocessing"]["target_n_channels"]]
+    target_n_channels = cfg["preprocessing"]["target_n_channels"]
+
+    if eeg.shape[1] >= target_n_channels:
+        eeg = eeg[:, :target_n_channels]
     else:
-        raise ValueError(f"Trial {tid}: EEG has only {eeg.shape[1]} channels, expected >= {cfg['preprocessing']['target_n_channels']}")
+        raise ValueError(
+            f"Trial {tid}: EEG has only {eeg.shape[1]} channels, "
+            f"expected >= {target_n_channels}"
+        )
 
     # ---------------- Envelopes ----------------
     stimL = os.path.splitext(str(tr["stim_L_name"]))[0]
     stimR = os.path.splitext(str(tr["stim_R_name"]))[0]
 
-    envL, _ = get_envelope(stimL, multiband)
-    envR, _ = get_envelope(stimR, multiband)
+    envL, _ = get_envelope(stimL, sum_subbands=sum_subbands)
+    envR, _ = get_envelope(stimR, sum_subbands=sum_subbands)
 
     # ---------------- Attended ear ----------------
     env_att, env_unatt = get_attended(tr["attended_ear"], envL, envR)
 
     # ---------------- Align lengths ----------------
     eeg, env_att, env_unatt = align_lengths(eeg, env_att, env_unatt)
-
-    # ---------------- Z-score ---------------------
-    #eeg = zscore(eeg, axis=0)
-    #env_att = zscore(env_att, axis=0)
-    #env_unatt = zscore(env_unatt, axis=0)
 
     return eeg, env_att, env_unatt
 
@@ -153,9 +170,9 @@ def merge_repetition_trials(trials_df, data):
             print(f"Warning: {orig_stim} has {len(idxs)} reps (expected 3). Skipping.")
             continue
 
-        eeg = np.concatenate([data[i][0] for i in idxs])
-        att = np.concatenate([data[i][1] for i in idxs])
-        unatt = np.concatenate([data[i][2] for i in idxs])
+        eeg = np.concatenate([data[i][0] for i in idxs], axis=0)
+        att = np.concatenate([data[i][1] for i in idxs], axis=0)
+        unatt = np.concatenate([data[i][2] for i in idxs], axis=0)
 
         merged.append((eeg, att, unatt))
 
@@ -166,16 +183,40 @@ def merge_repetition_trials(trials_df, data):
 # -------------------------------------------------------------------------------
 #                             Get Envelopes
 # -------------------------------------------------------------------------------
-def get_envelope(stim_base, multiband=True):
-    npz = np.load(paths.envelope(f"{stim_base}_env.npz"))
-    env = npz["envelope"]
-    w = npz["subband_weights"]
+def get_envelope(stim_base, sum_subbands=True):
+    """
+    Returns:
+        env_out, weights
 
-    if multiband:
-        return env, w
-    else:
-        w_norm = w / np.sum(w)
-        return env @ w_norm, w_norm
+    If sum_subbands=True:
+        env_out has shape (T, 1)
+
+    If sum_subbands=False:
+        env_out has shape (T, B)
+    """
+    npz = np.load(paths.envelope(f"{stim_base}_env.npz"))
+    env = np.asarray(npz["envelope"], dtype=np.float32)
+    w = np.asarray(npz["subband_weights"], dtype=np.float32)
+
+    if env.ndim == 1:
+        env = env[:, None]
+
+    if sum_subbands:
+        env_out = np.sum(env, axis=1, keepdims=True).astype(np.float32)
+
+        # z-score AFTER summing
+        mu = np.mean(env_out, axis=0, keepdims=True)
+        sigma = np.std(env_out, axis=0, keepdims=True)
+        env_out = (env_out - mu) / (sigma + 1e-8)
+
+        return env_out.astype(np.float32), w
+
+    # normalize each subband only when returning multiband
+    mu = np.mean(env, axis=0, keepdims=True)
+    sigma = np.std(env, axis=0, keepdims=True)
+    env = (env - mu) / (sigma + 1e-8)
+
+    return env.astype(np.float32), w
 
 
 def get_attended(att_ear, env_left, env_right):
@@ -184,7 +225,7 @@ def get_attended(att_ear, env_left, env_right):
         return env_left, env_right
     if "right" in s or s.startswith("r") or s.endswith("r"):
         return env_right, env_left
-    return env_left, env_right
+    raise ValueError(f"Unknown attended_ear value: {att_ear}")
 
 
 def align_lengths(*arrays):

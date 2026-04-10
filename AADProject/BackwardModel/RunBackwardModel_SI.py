@@ -20,6 +20,7 @@ from BackwardModel.plots import (
     plot_trf_weights,
     plot_window_heatmap,
 )
+from scipy.stats import zscore
 
 # =========================
 # Helpers: normalization
@@ -29,6 +30,9 @@ class Standardizer:
     def __init__(self):
         self.mu = None
         self.sigma = None
+        self.n = 0
+        self._sum = None
+        self._sumsq = None
 
     def fit(self, X):
         self.mu = np.mean(X, axis=0, keepdims=True)
@@ -36,9 +40,56 @@ class Standardizer:
         self.sigma[self.sigma < 1e-8] = 1.0
         return self
 
+    def partial_fit(self, X):
+        X = np.asarray(X, dtype=np.float64)
+        if X.ndim == 1:
+            X = X[:, None]
+
+        sx = np.sum(X, axis=0, keepdims=True)
+        sxx = np.sum(X * X, axis=0, keepdims=True)
+
+        if self._sum is None:
+            self._sum = sx
+            self._sumsq = sxx
+        else:
+            self._sum += sx
+            self._sumsq += sxx
+
+        self.n += X.shape[0]
+        return self
+
+    def finalize(self):
+        if self.n == 0:
+            raise ValueError("Standardizer.finalize() called with no data.")
+        self.mu = self._sum / self.n
+        var = self._sumsq / self.n - self.mu * self.mu
+        var[var < 1e-8] = 1.0
+        self.sigma = np.sqrt(var)
+        return self
+
     def transform(self, X):
         return (X - self.mu) / self.sigma
 
+#other option zscore per trial
+def zscore_trial(X):
+    """
+    Per-trial z-scoring along time axis.
+    X: (T, D) or (T,)
+    """
+    X = np.asarray(X, dtype=np.float32)
+
+    if X.ndim == 1:
+        X = X[:, None]
+        squeeze_back = True
+    else:
+        squeeze_back = False
+
+    mu = np.mean(X, axis=0, keepdims=True)
+    sigma = np.std(X, axis=0, keepdims=True)
+    sigma[sigma < 1e-8] = 1.0
+
+    Xz = (X - mu) / sigma
+    return Xz[:, 0] if squeeze_back else Xz
 
 # =========================
 # Lag matrix + ridge
@@ -51,6 +102,8 @@ def create_lag_matrix(EEG, lags_t, fs):
     fs: Hz
     returns X_lagged: (T, n_lags*channels)
     """
+    EEG = np.asarray(EEG, dtype=np.float32)
+
     lag_low, lag_high = lags_t
 
     lags = np.arange(
@@ -61,7 +114,7 @@ def create_lag_matrix(EEG, lags_t, fs):
     n_samples_t, n_ch = EEG.shape
     n_lags = len(lags)
 
-    X_lagged = np.zeros((n_samples_t, n_lags * n_ch), dtype=EEG.dtype)
+    X_lagged = np.zeros((n_samples_t, n_lags * n_ch), dtype=np.float32)
 
     for i, lag in enumerate(lags):
         c0 = i * n_ch
@@ -160,40 +213,109 @@ def windowed_corr_fast(y_pred, y_true, window_len, step):
 # =========================
 # Data loading helper
 # =========================
-
-def load_subject_block(nwb_path, lags, fs, multiband, eeg_std=None, y_std=None):
+def load_subject_block(nwb_path, lags, fs, sum_subbands, eeg_std=None, y_std=None, norm_mode="global"):
     """
     Loads all trials for 1 subject and returns stacked arrays:
       X: (T_total, n_features)
-      y: (T_total, Ydim) or (T_total,1)
+      y: (T_total, Ydim)
+
+    norm_mode:
+      - "global": use fitted Standardizer objects
+      - "per_trial": z-score each trial independently
+      - "none": no normalization
     """
-    data_subj, _ = DataPreparation.Load_data(nwb_path, merged=True, multiband=multiband)
+
+    data_subj, _ = DataPreparation.Load_data(
+        nwb_path,
+        merged=False,
+        sum_subbands=sum_subbands,
+    )
 
     X_list = []
     y_list = []
 
     for eeg, env_att, _ in data_subj:
-        if eeg_std is not None:
-            eeg = eeg_std.transform(eeg)
+        y = np.asarray(env_att, dtype=np.float32)
 
-        y = env_att if multiband else env_att.reshape(-1, 1)
-        if y_std is not None:
-            y = y_std.transform(y)
+        if y.ndim == 1:
+            y = y.reshape(-1, 1)
+
+        if norm_mode == "global":
+            if eeg_std is not None:
+                eeg = eeg_std.transform(eeg)
+            if y_std is not None:
+                y = y_std.transform(y)
+
+        elif norm_mode == "per_trial":
+            eeg = zscore_trial(eeg)
+            y = zscore_trial(y)
+
+        elif norm_mode == "none":
+            pass
+
+        else:
+            raise ValueError(f"Unknown norm_mode: {norm_mode}")
 
         X_list.append(create_lag_matrix(eeg, lags, fs))
-        y_list.append(y)
+        y_list.append(y.astype(np.float32))
 
     return np.vstack(X_list), np.vstack(y_list)
+
+def prepare_target(env, sum_subbands=True):
+    """
+    Convert target envelope to shape (T, 1) if summing subbands,
+    otherwise keep multiband shape (T, B).
+
+    env: (T,), (T,1), or (T,B)
+    """
+    env = np.asarray(env, dtype=np.float32)
+
+    if env.ndim == 1:
+        return env.reshape(-1, 1)
+
+    if sum_subbands:
+        return np.sum(env, axis=1, keepdims=True)
+
+    return env
+ 
+def subject_stats_or_block(nwb_path, lags, fs, sum_subbands, eeg_std, y_std, keep_block=False, norm_mode="global"):
+    Xs, ys = load_subject_block(
+        nwb_path,
+        lags,
+        fs,
+        sum_subbands,
+        eeg_std,
+        y_std,
+        norm_mode,
+    )
+
+    XtX = (Xs.T @ Xs).astype(np.float64)
+    XtY = (Xs.T @ ys).astype(np.float64)
+
+    if keep_block:
+        return XtX, XtY, Xs, ys
+    return XtX, XtY, None, None
+
+
+def mean_corr(y_pred, y_true):
+    if y_true.ndim > 1 and y_true.shape[1] > 1:
+        r = np.mean([np.corrcoef(y_pred[:, b], y_true[:, b])[0, 1] for b in range(y_true.shape[1])])
+    else:
+        r = np.corrcoef(y_pred.ravel(), y_true.ravel())[0, 1]
+
+    if np.isnan(r):
+        r = 0.0
+    return float(r)
 
 
 # =========================
 # Core: one LOSO fold
 # =========================
 
-def run_mTRF_subject(train_paths, test_path, cfg, window_s_override=None, step_s_override=None):
+def run_mTRF_subject(train_paths, test_path, cfg, window_s_override=None, step_s_override=None, norm_mode="global"):
     fs = float(cfg["preprocessing"]["target_fs"])
 
-    # overrides
+
     window_s = float(window_s_override) if window_s_override is not None else float(cfg["backward_model"]["window_s"])
     step_s   = float(step_s_override)   if step_s_override   is not None else float(cfg["backward_model"]["step_s"])
 
@@ -201,8 +323,11 @@ def run_mTRF_subject(train_paths, test_path, cfg, window_s_override=None, step_s
     step = max(1, int(round(step_s * fs)))
 
     lags = cfg["backward_model"]["lag_ms"]
-    multiband = cfg["backward_model"]["multiband"]
 
+    sum_subbands = cfg["backward_model"].get("sum_subbands", True)
+
+    print(f"[NORMALIZATION] norm_mode={norm_mode}")
+    print(f"[TARGET] sum_subbands={sum_subbands}")
     print(f"[WINDOW] window_s={window_s} step_s={step_s} -> window_len={window_len} step={step} samples @ fs={fs}")
     print(f"Loading {len(train_paths)} training subjects...")
 
@@ -216,35 +341,60 @@ def run_mTRF_subject(train_paths, test_path, cfg, window_s_override=None, step_s
         raise ValueError("Not enough training subjects after train/val split.")
 
     # ----- fit standardizers on TRAIN subjects only -----
-    eeg_accum = []
-    y_accum = []
-    for p in tr_paths:
-        data_subj, _ = DataPreparation.Load_data(p, merged=True, multiband=multiband)
-        for eeg, env_att, _ in data_subj:
-            eeg_accum.append(eeg)
-            y = env_att if multiband else env_att.reshape(-1, 1)
-            y_accum.append(y)
+    eeg_std = None
+    y_std = None
+    if norm_mode == "global":
+        eeg_std = Standardizer()
+        y_std = Standardizer()
 
-    eeg_std = Standardizer().fit(np.vstack(eeg_accum))
-    y_std = Standardizer().fit(np.vstack(y_accum))
+        for p in tr_paths:
+            data_subj, _ = DataPreparation.Load_data(
+                p,
+                merged=False,
+                sum_subbands=sum_subbands,
+            )
 
-    # ----- determine feature dimension -----
-    X_first, y_first = load_subject_block(tr_paths[0], lags, int(fs), multiband, eeg_std, y_std)
-    n_features = X_first.shape[1]
-    Ydim = y_first.shape[1]
+            for eeg, env_att, _ in data_subj:
+                eeg_std.partial_fit(eeg)
+
+                y = np.asarray(env_att, dtype=np.float32)
+                if y.ndim == 1:
+                    y = y.reshape(-1, 1)
+
+                y_std.partial_fit(y)
+
+        eeg_std.finalize()
+        y_std.finalize()
 
     # ----- precompute XtX, XtY on training (excluding val) -----
-    XtX = (X_first.T @ X_first).astype(float)
-    XtY = (X_first.T @ y_first).astype(float)
+    train_stats = []
+    n_features = None
+    Ydim = None
 
-    for p in tr_paths[1:]:
-        Xs, ys = load_subject_block(p, lags, int(fs), multiband, eeg_std, y_std)
-        XtX += Xs.T @ Xs
-        XtY += Xs.T @ ys
+    for p in tr_paths:
+        XtX_sub, XtY_sub, _, _ = subject_stats_or_block(
+            p, lags, int(fs), sum_subbands, eeg_std, y_std, keep_block=False, norm_mode=norm_mode
+        )
+        train_stats.append((XtX_sub, XtY_sub))
+
+        if n_features is None:
+            n_features = XtX_sub.shape[0]
+            Ydim = XtY_sub.shape[1]
+
+    XtX = np.zeros((n_features, n_features), dtype=np.float64)
+    XtY = np.zeros((n_features, Ydim), dtype=np.float64)
+    for XtX_sub, XtY_sub in train_stats:
+        XtX += XtX_sub
+        XtY += XtY_sub
 
     # ----- preload validation blocks -----
     print("Tuning λ ...")
-    val_blocks = [load_subject_block(p, lags, int(fs), multiband, eeg_std, y_std) for p in val_paths]
+    val_blocks = []
+    for p in val_paths:
+        _, _, Xv, yv = subject_stats_or_block(
+            p, lags, int(fs), sum_subbands, eeg_std, y_std, keep_block=True, norm_mode=norm_mode
+        )
+        val_blocks.append((Xv, yv))
 
     # ----- λ tuning via eigendecomposition -----
     lambdas = np.logspace(0, 6, 7)
@@ -260,13 +410,7 @@ def run_mTRF_subject(train_paths, test_path, cfg, window_s_override=None, step_s
         scores = []
         for Xv, yv in val_blocks:
             y_pred = ridge_predict(Xv, w)
-            if Ydim > 1:
-                r = np.mean([np.corrcoef(y_pred[:, b], yv[:, b])[0, 1] for b in range(Ydim)])
-            else:
-                r = np.corrcoef(y_pred.ravel(), yv.ravel())[0, 1]
-            if np.isnan(r):
-                r = 0.0
-            scores.append(float(r))
+            scores.append(mean_corr(y_pred, yv))
 
         mean_score = float(np.mean(scores))
         print(f"λ={lam:.1e}  | mean r={mean_score:.4f}")
@@ -277,13 +421,15 @@ def run_mTRF_subject(train_paths, test_path, cfg, window_s_override=None, step_s
     print(f"Best λ = {best_lambda}")
 
     # ----- train on ALL training subjects -----
-    XtX = np.zeros((n_features, n_features), dtype=float)
-    XtY = np.zeros((n_features, Ydim), dtype=float)
+    XtX = np.zeros((n_features, n_features), dtype=np.float64)
+    XtY = np.zeros((n_features, Ydim), dtype=np.float64)
 
     for p in train_paths:
-        Xs, ys = load_subject_block(p, lags, int(fs), multiband, eeg_std, y_std)
-        XtX += Xs.T @ Xs
-        XtY += Xs.T @ ys
+        XtX_sub, XtY_sub, _, _ = subject_stats_or_block(
+            p, lags, int(fs), sum_subbands, eeg_std, y_std, keep_block=False, norm_mode=norm_mode
+        )
+        XtX += XtX_sub
+        XtY += XtY_sub
 
     w = np.linalg.solve(XtX + best_lambda * np.eye(n_features), XtY)
     decoder_w = w.copy()
@@ -298,18 +444,38 @@ def run_mTRF_subject(train_paths, test_path, cfg, window_s_override=None, step_s
 
     # ----- evaluate on test subject -----
     test_data, test_meta, test_nwb = DataPreparation.Load_data(
-        test_path, merged=True, multiband=multiband, return_meta=True
+        test_path,
+        merged=False,
+        sum_subbands=sum_subbands,
+        return_meta=True,
     )
 
     results = []
     for ti, (eeg, env_att, env_unatt) in enumerate(test_data):
-        eeg = eeg_std.transform(eeg)
 
-        y_att = env_att if multiband else env_att.reshape(-1, 1)
-        y_un  = env_unatt if multiband else env_unatt.reshape(-1, 1)
+        y_att = np.asarray(env_att, dtype=np.float32)
+        y_un  = np.asarray(env_unatt, dtype=np.float32)
 
-        y_att = y_std.transform(y_att)
-        y_un  = y_std.transform(y_un)
+        if y_att.ndim == 1:
+            y_att = y_att.reshape(-1, 1)
+        if y_un.ndim == 1:
+            y_un = y_un.reshape(-1, 1)
+
+        if norm_mode == "global":
+            eeg = eeg_std.transform(eeg)
+            y_att = y_std.transform(y_att)
+            y_un  = y_std.transform(y_un)
+
+        elif norm_mode == "per_trial":
+            eeg = zscore_trial(eeg)
+            y_att = zscore_trial(y_att)
+            y_un  = zscore_trial(y_un)
+
+        elif norm_mode == "none":
+            pass
+
+        else:
+            raise ValueError(f"Unknown norm_mode: {norm_mode}")
 
         X = create_lag_matrix(eeg, lags, int(fs))
         y_pred = X @ w
@@ -318,13 +484,15 @@ def run_mTRF_subject(train_paths, test_path, cfg, window_s_override=None, step_s
 
         if Ydim > 1:
             corr_att = float(np.mean([np.corrcoef(y_pred[:, b], y_att[:, b])[0, 1] for b in range(Ydim)]))
-            corr_un  = float(np.mean([np.corrcoef(y_pred[:, b], y_un[:, b])[0, 1]  for b in range(Ydim)]))
+            corr_un  = float(np.mean([np.corrcoef(y_pred[:, b], y_un[:, b])[0, 1] for b in range(Ydim)]))
         else:
             corr_att = float(np.corrcoef(y_pred.ravel(), y_att.ravel())[0, 1])
             corr_un  = float(np.corrcoef(y_pred.ravel(), y_un.ravel())[0, 1])
 
-        if np.isnan(corr_att): corr_att = 0.0
-        if np.isnan(corr_un):  corr_un  = 0.0
+        if np.isnan(corr_att):
+            corr_att = 0.0
+        if np.isnan(corr_un):
+            corr_un = 0.0
 
         correct_full = bool(corr_att > corr_un)
 
@@ -380,14 +548,13 @@ def run_mTRF_subject(train_paths, test_path, cfg, window_s_override=None, step_s
         "lags": lags,
         "fs": fs,
         "n_channels": test_data[0][0].shape[1],
-
-        # store actual window used
         "window_s": window_s,
         "step_s": step_s,
         "window_len_samples": int(window_len),
         "step_samples": int(step),
+        "norm_mode": norm_mode,
+        "sum_subbands": sum_subbands,
     }
-
 
 # =========================
 # JSON serialization
@@ -546,17 +713,32 @@ def main():
 
     args = parser.parse_args()
 
-    # IMPORTANT: keep original config behavior
     cfg = paths.load_config()
-    subjects = cfg["subjects"]["all"]
+
+    use_subjects = cfg.get("use_subjects", "all")
+    if use_subjects not in cfg["subjects"]:
+        raise ValueError(
+            f"Unknown use_subjects='{use_subjects}'. "
+            f"Available: {list(cfg['subjects'].keys())}"
+        )
+
+    subjects = cfg["subjects"][use_subjects]
 
     mode = args.mode
     if mode is None:
-        mode = cfg.get("backward_model", {}).get("SI_mode", "mixed")
+        mode = cfg.get("SI_mode", {}).get("mode", "mixed")
+    mode = mode.lower()
 
+    norm_mode=cfg["data"]["norm_mode"]
+
+    if mode not in ["mixed", "separate"]:
+        raise ValueError(f"Unknown mode '{mode}'. Use 'mixed' or 'separate'.")
     print("\n========== RUNNING LOSO BACKWARD MODEL ==========")
+    print(f"use_subjects: {use_subjects}")
     print(f"Mode: {mode}")
-    print(f"N subjects total: {len(subjects)}")
+    print(f"N selected subjects: {len(subjects)}")
+    print(f"Subjects: {subjects}")
+    print(f"Normalization: {norm_mode}")
     print("=================================================\n")
 
     SI_base = paths.RESULTS_LIN / "SI"
@@ -590,6 +772,7 @@ def main():
             train_paths, test_path, cfg,
             window_s_override=args.window_s,
             step_s_override=args.step_s,
+            norm_mode=norm_mode,
         )
 
     if args.single_subject is not None:

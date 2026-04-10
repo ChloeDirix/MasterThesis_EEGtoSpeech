@@ -12,11 +12,13 @@ class paths:
     # Root of the project (folder containing config.yaml)
     #ROOT = Path(__file__).resolve().parent
     ROOT = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parent)).resolve()
+    DATA_ROOT = Path(os.environ.get("PROJECT_DATA_ROOT", ROOT)).resolve()
+
     # --------------------
     # Base folders
     # --------------------
-    DATA_DAS = ROOT / "Data_Das2019"
-    DATA_DTU = ROOT / "Data_DTU"
+    DATA_DAS = DATA_ROOT / "Data_Das2019"
+    DATA_DTU = DATA_ROOT / "Data_DTU"
 
     RAW_EEG_DAS = DATA_DAS / "EEGData"
     STIM_DAS = DATA_DAS / "stimuli"
@@ -24,16 +26,32 @@ class paths:
     RAW_EEG_DTU = DATA_DTU / "EEG"
     STIM_DTU= DATA_DTU / "AUDIO"
 
-    DATA_INPUT_MODEL = ROOT / "Data_InputModelFine"           #remove "Fine" for coarser data
-    ENVELOPES = DATA_INPUT_MODEL / "Envelopes"
-    EEG_PP = DATA_INPUT_MODEL / "EEG_PP"
-
     # Config file
     CONFIG_FILE = ROOT / "config.yaml"
 
     RESULTS_LIN = ROOT / "Results_Lin"
     RESULTS_DL = ROOT / "Results_DL"
 
+    
+    
+
+    # --------------------
+    # DataPath loader
+    # --------------------
+    @staticmethod
+    def data_input_model_dir():
+        cfg = paths.load_config()
+        variant = cfg["data"]["input"]
+
+        if variant == "fine":
+            return paths.DATA_ROOT / "Data_InputModelFine"
+        elif variant == "coarse":
+            return paths.DATA_ROOT / "Data_InputModel"
+        else:
+            raise ValueError(f"Unknown data.input_model_variant: {variant}")
+    
+    
+        
     # --------------------
     # Config loader
     # --------------------
@@ -56,15 +74,13 @@ class paths:
     # Subject paths
     # --------------------
     @staticmethod
-    def subject_eegPP(subject_id: str,dataset=""):
-        """
-        Returns path to preprocessed EEG file for a given subject.
-        Example: Paths.subject_eeg("S3") → Data_InputModel/EEG_PP/S3.nwb
-        """
-        if dataset=="":
-            return paths.EEG_PP / f"{subject_id}.nwb"
-        
-        return paths.EEG_PP / f"{subject_id}_{dataset}.nwb"
+    def subject_eegPP(subject_id: str, dataset=""):
+        eeg_pp_dir = paths.data_input_model_dir() / "EEG_PP"
+        if dataset == "":
+            return eeg_pp_dir / f"{subject_id}.nwb"
+        return eeg_pp_dir / f"{subject_id}_{dataset}.nwb"
+
+    
 
     @staticmethod
     def subject_eegPP_list(subject_ids: list, dataset=""):
@@ -80,8 +96,7 @@ class paths:
 
     @staticmethod
     def envelope(filename: str):
-        """Path to envelope file of a subject."""
-        return paths.ENVELOPES / filename
+        return paths.data_input_model_dir() / "Envelopes" / filename
 
     @staticmethod
     def stimulus(filename: str, dataset: str):
@@ -101,6 +116,7 @@ class paths:
         os.makedirs(dir,exist_ok=True)
         return dir / name
 
+    @staticmethod
     def result_file_lin_SI(name: str):
         """Result file inside Results directory."""
         dir = paths.RESULTS_LIN / "SI"
@@ -108,11 +124,11 @@ class paths:
         return dir / name
 
     @staticmethod
-    def result_file_DL(cfg,pathgiven=None):
+    def result_file_DL(cfg):
         if pathgiven!=None:
             return pathgiven
         else:
-            return paths.RESULTS_DL
+            return os.path.join(paths.RESULTS_DL)
 
 
     @staticmethod

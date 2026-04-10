@@ -2,15 +2,22 @@
 # 1. Preprocessing stages
 # ============================================================
 #datasets?
+
 Datasets:
   DTU: True
   DAS: True
 
 #preprocessing?
 Do_envelope_extraction: True
-Do_preprocessing: False
+Do_preprocessing: True
 
+# ============================================================
+# 1b. select what preprocessing must be used in model
+# ============================================================
 
+data: 
+  input: fine          # fine (64 Hz [1-28 Hz]  or coarse (32 Hz [1-9 Hz])
+  norm_mode:  per_trial        #per_trial, global or none or per_subject or "per_subject_train_global_val" "global_per_dataset"
 
 # ============================================================
 # 2. Subject selection
@@ -31,25 +38,23 @@ subjects:
   DTU: [S1_DTU,S2_DTU,S3_DTU,S4_DTU,S5_DTU,S6_DTU,S7_DTU,S8_DTU,S9_DTU,S10_DTU,S11_DTU,S12_DTU,S13_DTU,S14_DTU,S15_DTU,S16_DTU,S17_DTU,S18_DTU]
   small: [S1_DAS,S10_DTU,S10_DAS]
   
-use_subjects: "DAS" # "all" or "small" (for quick testing)
+use_subjects: "all" # "all" or "small" (for quick testing)
 
 SI_mode:
-  mode: "separate"     # "separate" or "mixed" (datasets separate or merged for training)
+  mode: "mixed"     # "separate" or "mixed" (datasets separate or merged for training)
   
 
 splits:
   mode: "single"     # "single" | "loso"
-  single:
-    train: [S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16]
-    val: [S1]
+
 
 
 # ============================================================
 # 3. Preprocessing settings
 # ============================================================
 preprocessing:
-  target_fs: 128   #Hz -- min 2 bandwidth
-  band: [1, 32]    #Hz
+  target_fs: 64   #Hz -- min 2 bandwidth
+  band: [1, 28]    #Hz
   rereference_method: "mean"
   plotting:
     enable: false
@@ -62,11 +67,12 @@ preprocessing:
 # ============================================================
 # 4. Backward model (mTRF) settings
 # ============================================================
+
 backward_model:
-  window_s: 30
-  step_s: 1
+  window_s: 5
+  step_s: 2
   lag_ms: [-100, 400]
-  multiband: true
+  sum_subbands: True
 
 
 # ============================================================
@@ -75,49 +81,77 @@ backward_model:
 
 # DLModel Parameters -----------------------------------------------
 DeepLearning:
-  data_windows:
-    window_len_s: 5.0
-    window_step_s: 2
+  modelType:
+    name: "Type4"   # Type 2,3,4
 
-  loss:
-    name: "infoNCE"         # or "triplet" or infoNCE
-    margin: 0.2             # logistic_rank could also use it
-    
-    temperature: 0.07
+  data_windows:
+    data:
+      window_len_s: 5.0
+      window_step_s: 5.0
+      min_gap_train: 5.0
+      selection_mode: step
+      max_windows_per_trial: null    #can use all available windows
+
+    val:
+      window_len_s: 5.0
+      window_step_s: 5.0
+      min_gap_val: 5.0
+      selection_mode: non_overlapping
+      max_windows_per_trial: null          
+
+
+
+  loss:  #only of Type 3
+    name: "logistic_rank"         # or "triplet" or infoNCE
+    margin: 0.0             # logistic_rank could also use it
     normalize: True 
 
   train:
     batch_size: 16            #higher: better training stability, lower: less memory problems
-    num_epochs: 50            
+    num_epochs: 10            
     learning_rate: 1e-4       #[5e-5,1e-4,2e-4,3e-4]: do sweep
-    weight_decay: 1e-4        # higher: less overfitting, lower:less underfitting
-    patience: 8
+    weight_decay: 1e-3        # higher: less overfitting, lower:less underfitting
+    patience: 60
     sampler_mode: "dataset"
-
+    num_workers: 4
+    
+    
   model:
     eeg_encoder:
-      d_model: 128          # lower:underfit, higher:overfit
+      d_model: 256          # lower:underfit, higher:overfit
       n_heads: 8            # Rule of thumb: d_model % n_heads == 0
-      n_layers: 4           # higher: more overfit, lower:more underfit
+      n_layers: 1           # higher: more overfit, lower:more underfit
+      ff_mult: 4
       dropout: 0.1
-      conv_kernel: 31
-      pool: "attn"
-      out_dim: 128
-      use_conv: true
+      conv_kernel: 63
+      out_dim: 64
+      max_len: 4000
+      
     audio_encoder:
-      d_model: 128
-      conv_kernel: 31
+      mode: linear    #identity, linear, conv
+      base_dim: 64
+      conv_kernel: 63
+      lstm_hidden_1: 64
+      lstm_hidden_2: 4
       dropout: 0.1
-      out_dim: 128
-      use_conv: true
+
     contrastive:
       temperature: 0.2     # higher: unstable, lower: stable (controls hardness of the softmax)
 
+  fine_tuning:
+    freeze_all_first: false
+    trainable_prefixes: []
+    
   quick_test:
     enable: False
-    max_windows: 200
-    max_epochs: 3
-    use_subjects: "small"
+    max_epochs: 10
+    use_subjects: "all"
+
+  overfit_tiny:
+    enable: False
+    subject: "S3_DTU"
+    n_windows: 32
+    max_epochs: 50
 
 
 

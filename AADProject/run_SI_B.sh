@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=SI_plots
-#SBATCH --clusters=genius
-#SBATCH --account=intro_vsc37381
+#SBATCH --clusters=wice
+#SBATCH --account=lp_edu_large_omics
 #SBATCH --partition=batch
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -17,7 +17,7 @@ CODE_DIR="$VSC_DATA/MasterThesis_EEGtoSpeech/AADProject"
 export PYTHONPATH="$CODE_DIR:$PYTHONPATH"
 cd "$CODE_DIR"
 
-ARRAY_JOB_ID="58961143"
+ARRAY_JOB_ID="66379037"
 
 RUN_DIR="$VSC_SCRATCH/Results_Lin/SI/run_${ARRAY_JOB_ID}"
 

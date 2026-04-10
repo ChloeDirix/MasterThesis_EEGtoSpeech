@@ -1,140 +1,287 @@
-# DLModel/plot_checks.py
-
 import os
 import numpy as np
-import torch
 import matplotlib.pyplot as plt
 from pytorch_lightning.callbacks import Callback
 
 
 class PlotCallback(Callback):
-    """
-    Lightweight training-time diagnostics:
-      - train/val accuracy curves
-      - train/val loss curves
-      - gradient norm curve (properly computed)
-
-    No extra validation pass.
-    """
-
-    def __init__(self, save_dir="Results/plots", track_grad_norm: bool = True):
+    
+    def __init__(
+        self,
+        plot_dir="Results/plots",
+        history_dir="Results/posthoc",
+        zoom_n_epochs: float = 5.0,
+        subject_label: str | None = None,
+        dataset_label: str | None = None,
+        window_len_s: float | None = None,
+        debug_keys: bool = False,
+    ):
         super().__init__()
-        self.save_dir = save_dir
-        self.track_grad_norm = track_grad_norm
-        os.makedirs(self.save_dir, exist_ok=True)
+        self.plot_dir = plot_dir
+        self.history_dir = history_dir
+        self.zoom_n_epochs = float(zoom_n_epochs)
+        self.subject_label = subject_label
+        self.dataset_label = dataset_label
+        self.window_len_s = window_len_s
+        self.debug_keys = bool(debug_keys)
 
-        # Metrics storage
-        self.train_acc = []
-        self.val_acc = []
-        self.train_loss = []
+        self._printed_val_keys = False
+
+        os.makedirs(self.plot_dir, exist_ok=True)
+        os.makedirs(self.history_dir, exist_ok=True)
+
+        # Dense comparable curves only
+        self.train_eval_acc_window = []
+        self.train_eval_loss = []
+        self.val_acc_window = []
         self.val_loss = []
 
-        # Gradient tracking
-        self.batch_grad_norms = []
-        self.epoch_grad_norms = []
+        # Shared x-axis for dense validation events
+        self.val_event_x = []
 
-    # ----------------------------------------------------------
-    # CORRECT place to measure gradients
-    # ----------------------------------------------------------
-    def on_after_backward(self, trainer, pl_module):
-        if not self.track_grad_norm:
-            return
+    def _get_validation_progress_x(self, trainer):
+        """
+        Returns fractional epoch progress, e.g.:
+          0.2, 0.4, 0.6, 0.8, 1.0, ...
+        when val_check_interval=0.2
+        """
+        epoch_idx = float(trainer.current_epoch)
 
-        total_norm_sq = 0.0
+        try:
+            num_batches = trainer.num_training_batches
+            completed = trainer.fit_loop.epoch_loop.batch_progress.current.completed
 
-        for p in pl_module.parameters():
-            if p.grad is not None:
-                param_norm = p.grad.data.norm(2)
-                total_norm_sq += param_norm.item() ** 2
+            if num_batches is None or num_batches <= 0:
+                return epoch_idx
 
-        total_norm = total_norm_sq ** 0.5
-        self.batch_grad_norms.append(total_norm)
+            frac = float(completed) / float(num_batches)
+            frac = max(0.0, min(1.0, frac))
+            return epoch_idx + frac
+        except Exception:
+            return epoch_idx
 
-    # ----------------------------------------------------------
-    # End of training epoch
-    # ----------------------------------------------------------
-    def on_train_epoch_end(self, trainer, pl_module):
-        logs = trainer.callback_metrics
+    @staticmethod
+    def _subset_until_epoch(x, y, n_epochs):
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
 
-        if "train_acc" in logs:
-            self.train_acc.append(float(logs["train_acc"]))
+        if len(x) == 0 or len(y) == 0:
+            return np.asarray([]), np.asarray([])
 
-        if "train_loss" in logs:
-            self.train_loss.append(float(logs["train_loss"]))
+        m = min(len(x), len(y))
+        x = x[:m]
+        y = y[:m]
 
-        # Aggregate gradient norms per epoch
-        if self.track_grad_norm and len(self.batch_grad_norms) > 0:
-            mean_grad = float(np.mean(self.batch_grad_norms))
-            self.epoch_grad_norms.append(mean_grad)
-            self.batch_grad_norms = []
+        mask = x <= float(n_epochs)
+        return x[mask], y[mask]
 
-    # ----------------------------------------------------------
-    # End of validation epoch
-    # ----------------------------------------------------------
+    @staticmethod
+    def _finite_xy(x, y):
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
+
+        if len(x) == 0 or len(y) == 0:
+            return np.asarray([]), np.asarray([])
+
+        m = min(len(x), len(y))
+        x = x[:m]
+        y = y[:m]
+
+        mask = np.isfinite(x) & np.isfinite(y)
+        return x[mask], y[mask]
+
+    def _title_prefix(self):
+        parts = []
+        if self.subject_label:
+            parts.append(str(self.subject_label))
+        if self.dataset_label:
+            parts.append(str(self.dataset_label))
+        if self.window_len_s is not None:
+            parts.append(f"{self.window_len_s:g} s windows")
+        return " — ".join(parts)
+
+    def _full_title(self, base: str):
+        prefix = self._title_prefix()
+        return f"{prefix} — {base}" if prefix else base
+
+    def _save_history_npz(self):
+        os.makedirs(self.history_dir, exist_ok=True)
+
+        np.savez(
+            os.path.join(self.history_dir, "metric_history.npz"),
+            val_event_x=np.asarray(self.val_event_x, dtype=float),
+            train_eval_acc_window=np.asarray(self.train_eval_acc_window, dtype=float),
+            val_acc_window=np.asarray(self.val_acc_window, dtype=float),
+            train_eval_loss=np.asarray(self.train_eval_loss, dtype=float),
+            val_loss=np.asarray(self.val_loss, dtype=float),
+        )
+
     def on_validation_epoch_end(self, trainer, pl_module):
         logs = trainer.callback_metrics
+        x_val = self._get_validation_progress_x(trainer)
+        self.val_event_x.append(x_val)
 
-        if "val_acc" in logs:
-            self.val_acc.append(float(logs["val_acc"]))
+        if self.debug_keys and not self._printed_val_keys:
+            print("[PlotCallback] VAL callback_metrics keys:", sorted(logs.keys()))
+            self._printed_val_keys = True
 
-        if "val_loss" in logs:
-            self.val_loss.append(float(logs["val_loss"]))
+        te_acc = logs.get("train_eval_acc_window", None)
+        v_acc = logs.get("val_acc_window", None)
+        te_loss = logs.get("train_eval_loss", None)
+        v_loss = logs.get("val_loss", None)
 
-    # ----------------------------------------------------------
-    # End of training (generate plots)
-    # ----------------------------------------------------------
+        self.train_eval_acc_window.append(float(te_acc) if te_acc is not None else np.nan)
+        self.val_acc_window.append(float(v_acc) if v_acc is not None else np.nan)
+        self.train_eval_loss.append(float(te_loss) if te_loss is not None else np.nan)
+        self.val_loss.append(float(v_loss) if v_loss is not None else np.nan)
+
+    def _plot_accuracy_dense(self):
+        if not (
+            np.isfinite(np.asarray(self.train_eval_acc_window, dtype=float)).any()
+            or np.isfinite(np.asarray(self.val_acc_window, dtype=float)).any()
+        ):
+            return
+
+        plt.figure(figsize=(8, 4.5))
+
+        x_te, y_te = self._finite_xy(
+            self.val_event_x[:len(self.train_eval_acc_window)],
+            self.train_eval_acc_window,
+        )
+        x_v, y_v = self._finite_xy(
+            self.val_event_x[:len(self.val_acc_window)],
+            self.val_acc_window,
+        )
+
+        if len(y_te):
+            plt.plot(x_te, y_te, marker="o", label="Train eval window accuracy")
+        if len(y_v):
+            plt.plot(x_v, y_v, marker="o", label="Validation window accuracy")
+
+        plt.xlabel("Epoch progress")
+        plt.ylabel("Accuracy")
+        plt.title(self._full_title("Window Accuracy During Training"))
+        plt.grid(True)
+        plt.legend(loc="best")
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.plot_dir, "accuracy_dense.png"))
+        plt.close()
+
+    def _plot_accuracy_zoom(self):
+        if not (
+            np.isfinite(np.asarray(self.train_eval_acc_window, dtype=float)).any()
+            or np.isfinite(np.asarray(self.val_acc_window, dtype=float)).any()
+        ):
+            return
+
+        plt.figure(figsize=(8, 4.5))
+
+        x_te, y_te = self._subset_until_epoch(
+            self.val_event_x,
+            self.train_eval_acc_window,
+            self.zoom_n_epochs,
+        )
+        x_v, y_v = self._subset_until_epoch(
+            self.val_event_x,
+            self.val_acc_window,
+            self.zoom_n_epochs,
+        )
+
+        x_te, y_te = self._finite_xy(x_te, y_te)
+        x_v, y_v = self._finite_xy(x_v, y_v)
+
+        if len(y_te):
+            plt.plot(x_te, y_te, marker="o", label="Train eval window accuracy")
+        if len(y_v):
+            plt.plot(x_v, y_v, marker="o", label="Validation window accuracy")
+
+        plt.xlabel("Epoch progress")
+        plt.ylabel("Accuracy")
+        plt.title(self._full_title(f"Window Accuracy During Training — First {self.zoom_n_epochs:g} Epochs"))
+        plt.grid(True)
+        plt.legend(loc="best")
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.plot_dir, "accuracy_zoom_first_epochs.png"))
+        plt.close()
+
+    def _plot_loss_dense(self):
+        if not (
+            np.isfinite(np.asarray(self.train_eval_loss, dtype=float)).any()
+            or np.isfinite(np.asarray(self.val_loss, dtype=float)).any()
+        ):
+            return
+
+        plt.figure(figsize=(8, 4.5))
+
+        x_te, y_te = self._finite_xy(
+            self.val_event_x[:len(self.train_eval_loss)],
+            self.train_eval_loss,
+        )
+        x_v, y_v = self._finite_xy(
+            self.val_event_x[:len(self.val_loss)],
+            self.val_loss,
+        )
+
+        if len(y_te):
+            plt.plot(x_te, y_te, marker="o", label="Train eval loss")
+        if len(y_v):
+            plt.plot(x_v, y_v, marker="o", label="Validation loss")
+
+        plt.xlabel("Epoch progress")
+        plt.ylabel("Loss")
+        plt.title(self._full_title("Window Loss During Training"))
+        plt.grid(True)
+        plt.legend(loc="best")
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.plot_dir, "loss_dense.png"))
+        plt.close()
+
+    def _plot_loss_zoom(self):
+        if not (
+            np.isfinite(np.asarray(self.train_eval_loss, dtype=float)).any()
+            or np.isfinite(np.asarray(self.val_loss, dtype=float)).any()
+        ):
+            return
+
+        plt.figure(figsize=(8, 4.5))
+
+        x_te, y_te = self._subset_until_epoch(
+            self.val_event_x,
+            self.train_eval_loss,
+            self.zoom_n_epochs,
+        )
+        x_v, y_v = self._subset_until_epoch(
+            self.val_event_x,
+            self.val_loss,
+            self.zoom_n_epochs,
+        )
+
+        x_te, y_te = self._finite_xy(x_te, y_te)
+        x_v, y_v = self._finite_xy(x_v, y_v)
+
+        if len(y_te):
+            plt.plot(x_te, y_te, marker="o", label="Train eval loss")
+        if len(y_v):
+            plt.plot(x_v, y_v, marker="o", label="Validation loss")
+
+        plt.xlabel("Epoch progress")
+        plt.ylabel("Loss")
+        plt.title(self._full_title(f"Window Loss During Training — First {self.zoom_n_epochs:g} Epochs"))
+        plt.grid(True)
+        plt.legend(loc="best")
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.plot_dir, "loss_zoom_first_epochs.png"))
+        plt.close()
+
     def on_train_end(self, trainer, pl_module):
+        os.makedirs(self.plot_dir, exist_ok=True)
+        os.makedirs(self.history_dir, exist_ok=True)
 
-        # --------------------------
-        # Accuracy curves
-        # --------------------------
-        if len(self.train_acc) or len(self.val_acc):
-            plt.figure()
-            if len(self.train_acc):
-                plt.plot(self.train_acc, label="Train Acc")
-            if len(self.val_acc):
-                plt.plot(self.val_acc, label="Val Acc")
+        self._save_history_npz()
+        self._plot_accuracy_dense()
+        self._plot_accuracy_zoom()
+        self._plot_loss_dense()
+        self._plot_loss_zoom()
 
-            plt.xlabel("Epoch")
-            plt.ylabel("Accuracy")
-            plt.title("Accuracy Curves")
-            plt.legend()
-            plt.grid(True)
-            plt.tight_layout()
-            plt.savefig(os.path.join(self.save_dir, "accuracy_curves.png"))
-            plt.close()
-
-        # --------------------------
-        # Loss curves
-        # --------------------------
-        if len(self.train_loss) or len(self.val_loss):
-            plt.figure()
-            if len(self.train_loss):
-                plt.plot(self.train_loss, label="Train Loss")
-            if len(self.val_loss):
-                plt.plot(self.val_loss, label="Val Loss")
-
-            plt.xlabel("Epoch")
-            plt.ylabel("Loss")
-            plt.title("Loss Curves")
-            plt.legend()
-            plt.grid(True)
-            plt.tight_layout()
-            plt.savefig(os.path.join(self.save_dir, "loss_curves.png"))
-            plt.close()
-
-        # --------------------------
-        # Gradient norm curve
-        # --------------------------
-        if self.track_grad_norm and len(self.epoch_grad_norms):
-            plt.figure()
-            plt.plot(self.epoch_grad_norms)
-            plt.xlabel("Epoch")
-            plt.ylabel("Global L2 Gradient Norm")
-            plt.title("Gradient Norm Over Training")
-            plt.grid(True)
-            plt.tight_layout()
-            plt.savefig(os.path.join(self.save_dir, "gradient_norms.png"))
-            plt.close()
-
-        print(f"[PlotCallback] Saved training curves to: {self.save_dir}")
+        print(f"[PlotCallback] Saved clean plots to: {self.plot_dir}")
+        print(f"[PlotCallback] Saved metric history to: {self.history_dir}")

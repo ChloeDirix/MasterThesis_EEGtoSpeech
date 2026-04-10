@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=AAD_preproc
-#SBATCH --clusters=genius
-#SBATCH --account=intro_vsc37381
+#SBATCH --clusters=wice
+#SBATCH --account=lp_edu_large_omics
 #SBATCH --partition=batch
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -49,6 +49,6 @@ echo "Preprocessing finished."
 
 # ---------------- STAGE-OUT ----------------
 #echo "Copying NWB outputs back to DATA..."
-#rsync -avh "$PROJECT_ROOT/Data_InputModelFine/" "$CODE_DIR/Data_InputModelFine/"
+#rsync -avh "$PROJECT_ROOT/Data_InputModel/" "$CODE_DIR/Data_InputModel/"
 
 echo "Done."

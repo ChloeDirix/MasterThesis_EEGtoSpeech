@@ -16,7 +16,7 @@ from paths import paths
 
 
 # ============================================================
-# File resolving (supports old + new run layouts)
+# File resolving
 # ============================================================
 
 def _first_existing(*candidates):
@@ -373,7 +373,7 @@ def plot_dumbbell_ss_vs_si(
     si = np.array([si_csv[s]["window_accuracy"] for s in subjects], float)
     ds = [dataset_of(s) for s in subjects]
 
-    # Dataset colors (your vibe)
+    # Dataset colors 
     C_DAS = "steelblue"
     C_DTU = "forestgreen"
     C_UNK = "darkgray"
@@ -395,11 +395,11 @@ def plot_dumbbell_ss_vs_si(
         plt.plot([x[i], x[i]], [0, min(ss[i], si[i])], color="lightgrey", alpha=0.40, linewidth=1, zorder=1)
 
     # markers:
-    # SS = circle, SI = square (swap if you prefer)
+    # SS = circle, SI = square
     plt.scatter(x, ss, s=45, marker="o", c=ss_colors, edgecolors="black", linewidths=0.2,label="SS", zorder=3)
     plt.scatter(x, si, s=45, marker="s", c=SI_colors, edgecolors="black", linewidths=0.2,label="SI", zorder=3)
 
-    # separator between DAS and DTU (if both exist)
+    # separator between DAS and DTU
     if "DAS" in ds and "DTU" in ds:
         last_das = max(i for i, d in enumerate(ds) if d == "DAS")
         plt.axvline(last_das + 0.5, linestyle="--", linewidth=1, alpha=0.5)
@@ -446,9 +446,7 @@ def pair_by_window(ss_rows, si_rows, ndigits=6):
 
 
 # ============================================================
-# MESD (Geirnaert) from JSON
-#   - Build p(tau) from windows[].correct
-#   - Optionally only use NON-OVERLAPPING windows (default)
+# MESD 
 # ============================================================
 def snap_tau(tau, ndigits=3):
     """
@@ -484,41 +482,8 @@ def aggregate_curve_by_tau(rows, ndigits=3):
     return taus, ps_mean, ps_std, counts
 
 
-def plot_mesd_curve_with_points(res, label, save_dir, tau_pts=None, esd_pts=None):
-    """
-    Same as your plot_mesd_curve, but also shows evaluated points.
-    """
-    if res.get("reason") != "ok":
-        return
-    os.makedirs(save_dir, exist_ok=True)
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(res["tau_grid"], res["esd_grid"], linewidth=2, label=f"{label} ESD(τ)")
 
-    if tau_pts is not None and esd_pts is not None and len(tau_pts) > 0:
-        plt.plot(tau_pts, esd_pts, "o", markersize=6, label=f"{label} evaluated τ")
-
-    plt.scatter([res["tau_opt"]], [res["MESD"]], s=60, marker="o", label=f"{label} optimum")
-    plt.xlabel("Decision window length τ (s)")
-    plt.ylabel("Expected switch duration ESD (s)")
-    plt.title(f"{label} — MESD={res['MESD']:.2f}s at τ={res['tau_opt']:.2f}s, N={res['N_opt']}")
-    plt.grid(alpha=0.3)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(os.path.join(save_dir, f"{label}_MESD_curve.png"), dpi=200)
-    plt.close()
-
-def infer_tau_from_subject_json(subject_json):
-    lens = []
-    for tr in subject_json.get("results", []):
-        for w in tr.get("windows", []):
-            try:
-                lens.append(float(w["end"]) - float(w["start"]))
-            except Exception:
-                pass
-    if not lens:
-        return None
-    return float(np.median(lens))
 
 
 def _nonoverlap_correct_flags(windows, eps=1e-9):

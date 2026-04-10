@@ -70,7 +70,7 @@ class NWBManager:
                 md["n_speakers"] = 2
             t.metadata = md
 
-        # Optional filter: dual-speaker only
+        
         if self.keep_only_dual_speaker:
             before = len(subject.trials)
             subject.trials = [

@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.signal import filtfilt, firwin, remez, freqz, resample_poly
-from scipy.stats import zscore
+from scipy.signal import filtfilt, remez, freqz, resample_poly
+
 
 
 
@@ -121,8 +121,7 @@ def preprocess_trial(trial, cfg):
     if plot_steps:
         plt.show()
 
-    # Z-score normalization
-    #eeg = zscore(eeg, axis=0)
+ 
 
     return eeg, fs
 

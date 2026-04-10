@@ -160,7 +160,6 @@ class MatlabSubjectLoader:
             "stim_L_name": stim_names[0],
             "stim_R_name": stim_names[1],
 
-            # Keep these for schema compatibility; may be unknown in DAS
             "attend_mf": None,
             "attend_lr": None,
             "stim_male_name": None,
@@ -168,10 +167,9 @@ class MatlabSubjectLoader:
             "trigger": None,
             "acoustic_condition": None,
 
-            # assume dual-talker for DAS (adjust if your DAS can be single-speaker)
             "n_speakers": 2,
 
-            # provenance for DTU only, but keep keys consistent
+            # DTU only:
             "start_sample": None,
             "stop_sample": None,
         }
@@ -360,13 +358,7 @@ class MatlabSubjectLoader:
         if not trials:
             raise ValueError("[DTU] No trials were built. Check triggers/events matching.")
 
-        # Optional: duration stats to debug the "should be ~50s" expectation
-        if self.debug:
-            durs = [(t.metadata["stop_sample"] - t.metadata["start_sample"]) / fs_eeg_original for t in trials]
-            self._dbg(
-                f"[DTU] durations (sec): min={float(np.min(durs)):.2f}, "
-                f"median={float(np.median(durs)):.2f}, max={float(np.max(durs)):.2f} | n={len(durs)}"
-            )
+        
 
         return trials
 

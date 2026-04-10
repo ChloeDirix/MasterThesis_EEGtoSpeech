@@ -94,8 +94,6 @@ def run_mTRF(nwb_path: str, cfg):
     # -------- determine dataset label--------
     dataset_label = "unknown"
     try:
-        # If your Load_data returns trials_df instead of nwbfile, adapt accordingly.
-        # Here we assume you still have access to the NWB trials table while open.
         trials_df = nwbfile.trials.to_dataframe()
         if "dataset" in trials_df.columns and len(trials_df) > 0:
             ds_set = set(trials_df["dataset"].astype(str).tolist())
@@ -410,8 +408,7 @@ def summarize_results(results, cfg, run_dir):
         ds = str(r.get("dataset", "unknown"))
         grouped.setdefault(ds, []).append(r)
 
-    
-  
+     
 
     # Only write separate groups if there is more than one dataset present
     if len(grouped) > 1:

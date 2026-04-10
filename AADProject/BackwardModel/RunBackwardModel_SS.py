@@ -23,12 +23,11 @@ from BackwardModel.plots import (
 # Helpers
 # ============================================================
 
-def ensure_env_shape(env, multiband: bool):
-    env = np.asarray(env)
-    if multiband:
-        return env[:, None] if env.ndim == 1 else env
-    else:
-        return env[:, 0] if env.ndim == 2 else env
+def ensure_2d_env(env):
+    env = np.asarray(env, dtype=np.float32)
+    if env.ndim == 1:
+        return env[:, None]
+    return env
 
 
 def create_lag_matrix(EEG, lags_t, fs):
@@ -38,6 +37,8 @@ def create_lag_matrix(EEG, lags_t, fs):
     fs: Hz
     returns X_lagged: (T, n_lags*C)
     """
+    EEG = np.asarray(EEG, dtype=np.float32)
+
     lag_low, lag_high = lags_t
     lags = np.arange(
         int(np.floor(lag_low / 1000 * fs)),
@@ -47,7 +48,7 @@ def create_lag_matrix(EEG, lags_t, fs):
     T, C = EEG.shape
     L = len(lags)
 
-    X = np.zeros((T, L * C), dtype=EEG.dtype)
+    X = np.zeros((T, L * C), dtype=np.float32)
 
     for i, lag in enumerate(lags):
         c0 = i * C
@@ -65,6 +66,25 @@ def create_lag_matrix(EEG, lags_t, fs):
 
 def ridge_predict(X, w):
     return X @ w
+
+
+def mean_corr(y_pred, y_true):
+    y_pred = np.asarray(y_pred)
+    y_true = np.asarray(y_true)
+
+    if y_true.ndim > 1 and y_true.shape[1] > 1:
+        vals = []
+        for b in range(y_true.shape[1]):
+            r = np.corrcoef(y_pred[:, b], y_true[:, b])[0, 1]
+            if np.isnan(r):
+                r = 0.0
+            vals.append(r)
+        return float(np.mean(vals))
+
+    r = np.corrcoef(y_pred.ravel(), y_true.ravel())[0, 1]
+    if np.isnan(r):
+        r = 0.0
+    return float(r)
 
 
 # ============================================================
@@ -110,7 +130,8 @@ def _window_corr_1d_from_prefix(px, pxx, py, pyy, pxy, start, end):
 def windowed_corr_fast(y_pred, y_true, window_len, step):
     """
     y_pred, y_true: (T,) or (T,B)
-    returns: correlation per window (len = n_windows), averaged over bands if multiband
+    returns: correlation per window (len = n_windows),
+             averaged over bands if multiband
     """
     y_pred = np.asarray(y_pred)
     y_true = np.asarray(y_true)
@@ -173,12 +194,17 @@ def run_mTRF_subject_specific(nwb_path: str, cfg, window_s_override=None, step_s
     step = max(1, int(round(step_s * fs)))
 
     lags = cfg["backward_model"]["lag_ms"]
-    multiband = cfg["backward_model"]["multiband"]
+    sum_subbands = cfg["backward_model"].get("sum_subbands", True)
 
+    print(f"[TARGET] sum_subbands={sum_subbands}")
     print(f"[WINDOW] window_s={window_s} step_s={step_s} -> window_len={window_len} step={step} samples @ fs={fs}")
 
     # Load data
-    data, nwbfile = DataPreparation.Load_data(nwb_path, merged=True, multiband=multiband)
+    data, nwbfile = DataPreparation.Load_data(
+        nwb_path,
+        merged=True,
+        sum_subbands=sum_subbands,
+    )
 
     # Dataset label fallback
     p = str(nwb_path).lower()
@@ -194,37 +220,36 @@ def run_mTRF_subject_specific(nwb_path: str, cfg, window_s_override=None, step_s
     XtY_trials = []
 
     for eeg, env_att, env_unatt in data:
-        env_att = ensure_env_shape(env_att, multiband)
-        env_unatt = ensure_env_shape(env_unatt, multiband)
+        env_att = ensure_2d_env(env_att)
+        env_unatt = ensure_2d_env(env_unatt)
 
         X = create_lag_matrix(eeg, lags, int(fs))
+        y = env_att
 
-        if multiband:
-            y = env_att
-            XtY = X.T @ y
-        else:
-            y = env_att.reshape(-1)
-            XtY = (X.T @ y).reshape(-1)
+        XtX = (X.T @ X).astype(np.float64)
+        XtY = (X.T @ y).astype(np.float64)
 
-        XtX = X.T @ X
-
-        precomputed.append({"X": X, "env_att": env_att, "env_unatt": env_unatt})
+        precomputed.append({
+            "X": X,
+            "env_att": env_att,
+            "env_unatt": env_unatt,
+        })
         XtX_trials.append(XtX)
         XtY_trials.append(XtY)
 
     n_trials = len(precomputed)
     n_features = XtX_trials[0].shape[0]
-    Ydim = XtY_trials[0].shape[1] if multiband else 1
+    Ydim = XtY_trials[0].shape[1]
 
-    XtX_total = np.zeros((n_features, n_features), dtype=float)
-    XtY_total = np.zeros((n_features, Ydim), dtype=float) if multiband else np.zeros((n_features,), dtype=float)
+    XtX_total = np.zeros((n_features, n_features), dtype=np.float64)
+    XtY_total = np.zeros((n_features, Ydim), dtype=np.float64)
 
     for i in range(n_trials):
         XtX_total += XtX_trials[i]
         XtY_total += XtY_trials[i]
 
     # ========================================================
-    # Lambda tuning (full-trial Δr, unchanged)
+    # Lambda tuning
     # ========================================================
     val_fraction = 0.2
     n_val = max(1, int(n_trials * val_fraction))
@@ -247,25 +272,15 @@ def run_mTRF_subject_specific(nwb_path: str, cfg, window_s_override=None, step_s
     QtY = Q.T @ XtY_train
 
     for lam in lambdas:
-        if multiband:
-            w = Q @ (QtY / (eigvals[:, None] + lam))
-        else:
-            w = Q @ (QtY / (eigvals + lam))
+        w = Q @ (QtY / (eigvals[:, None] + lam))
 
         scores = []
         for vi in val_indices:
             test = precomputed[vi]
             y_pred = ridge_predict(test["X"], w)
 
-            if multiband:
-                corr_att = float(np.mean([np.corrcoef(y_pred[:, b], test["env_att"][:, b])[0, 1]
-                                          for b in range(y_pred.shape[1])]))
-                corr_un = float(np.mean([np.corrcoef(y_pred[:, b], test["env_unatt"][:, b])[0, 1]
-                                         for b in range(y_pred.shape[1])]))
-            else:
-                corr_att = float(np.corrcoef(y_pred.ravel(), test["env_att"].ravel())[0, 1])
-                corr_un = float(np.corrcoef(y_pred.ravel(), test["env_unatt"].ravel())[0, 1])
-
+            corr_att = mean_corr(y_pred, test["env_att"])
+            corr_un = mean_corr(y_pred, test["env_unatt"])
             scores.append(corr_att - corr_un)
 
         mean_score = float(np.mean(scores))
@@ -295,19 +310,12 @@ def run_mTRF_subject_specific(nwb_path: str, cfg, window_s_override=None, step_s
         y_pred = ridge_predict(test["X"], w)
 
         # Full-trial correlation
-        if multiband:
-            corr_att = float(np.mean([np.corrcoef(y_pred[:, b], test["env_att"][:, b])[0, 1]
-                                      for b in range(y_pred.shape[1])]))
-            corr_un = float(np.mean([np.corrcoef(y_pred[:, b], test["env_unatt"][:, b])[0, 1]
-                                     for b in range(y_pred.shape[1])]))
-        else:
-            corr_att = float(np.corrcoef(y_pred.ravel(), test["env_att"].ravel())[0, 1])
-            corr_un = float(np.corrcoef(y_pred.ravel(), test["env_unatt"].ravel())[0, 1])
-
+        corr_att = mean_corr(y_pred, test["env_att"])
+        corr_un = mean_corr(y_pred, test["env_unatt"])
         correct_full = bool(corr_att > corr_un)
 
         # Windowed evaluation
-        if multiband:
+        if Ydim > 1:
             cors_att = windowed_corr_fast(y_pred, test["env_att"], window_len, step)
             cors_un = windowed_corr_fast(y_pred, test["env_unatt"], window_len, step)
         else:
@@ -363,6 +371,9 @@ def run_mTRF_subject_specific(nwb_path: str, cfg, window_s_override=None, step_s
         "step_s": step_s,
         "window_len_samples": int(window_len),
         "step_samples": int(step),
+
+        # record target format used
+        "sum_subbands": sum_subbands,
     }
 
 
@@ -397,11 +408,11 @@ def summarize_results(results, cfg, run_dir):
         print(f"Mean windowed accuracy:  {np.mean(win_accs):.2f}")
 
         json_path = os.path.join(group_dir, f"mTRF_results_{group_name}.json")
-        with open(json_path, "w") as f:
+        with open(json_path, "w", encoding="utf-8") as f:
             json.dump(make_json_serializable(group_results), f, indent=2)
 
         csv_path = os.path.join(group_dir, f"mTRF_summary_{group_name}.csv")
-        with open(csv_path, "w", newline="") as f:
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(["Subject_ID", "Dataset", "Full_Trial_Accuracy", "Windowed_Accuracy"])
             for subj in group_results:
@@ -422,14 +433,14 @@ def summarize_results(results, cfg, run_dir):
         stats = summaryStats.SummaryStats(all_att, all_unatt)
 
         stats_path = os.path.join(group_dir, f"stats_{group_name}.json")
-        with open(stats_path, "w") as f:
+        with open(stats_path, "w", encoding="utf-8") as f:
             json.dump(stats, f, indent=2)
 
         summaryStats.plot_histograms(all_att, all_unatt, os.path.join(group_dir, "Correlations"))
 
         subjects_lbl = [subj.get("subject_label", subj["subject_id"]) for subj in group_results]
 
-        # IMPORTANT: use window_s from results, fallback to cfg
+        # use window_s from results, fallback to cfg
         window_s = group_results[0].get("window_s", cfg["backward_model"]["window_s"])
 
         plot_subject_bars(
@@ -466,7 +477,6 @@ def main():
     parser.add_argument("--merge-only", action="store_true",
                         help="Only merge per-subject JSONs in --run-dir and run summarize_results.")
 
-    # NEW: window overrides (use config when omitted)
     parser.add_argument("--window-s", type=float, default=None,
                         help="Override backward_model.window_s (seconds).")
     parser.add_argument("--step-s", type=float, default=None,
@@ -474,12 +484,12 @@ def main():
 
     args = parser.parse_args()
 
-    # IMPORTANT: keep the original behavior for config (this keeps DataPreparation happy)
     cfg = paths.load_config()
     subjects = cfg["subjects"]["all"]
 
     print("\n========== RUNNING SS BACKWARD MODEL ==========")
     print(f"Subjects: {subjects}")
+    print(f"sum_subbands: {cfg['backward_model'].get('sum_subbands', True)}")
     print("==============================================\n")
 
     SS_base = paths.RESULTS_LIN / "SS"
@@ -500,7 +510,7 @@ def main():
         print("\n========== DONE ==========\n")
         return
 
-    # Single-subject mode (for SLURM array)
+    # Single-subject mode
     if args.single_subject is not None:
         test_subj = args.single_subject
         if test_subj not in subjects:
