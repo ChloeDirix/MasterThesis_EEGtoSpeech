@@ -3,7 +3,7 @@
 #SBATCH --clusters=genius
 #SBATCH --account=lp_eegsigpro
 #SBATCH --nodes=1
-#SBATCH --partition=gpu_p100
+#SBATCH --partition=gpu_v100
 #SBATCH --gpus-per-node=1
 #SBATCH --mem=30G
 #SBATCH --time=01:00:00

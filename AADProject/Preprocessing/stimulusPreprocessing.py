@@ -58,6 +58,12 @@ def erbspacebw(f_low, f_high, spacing):
 # ============================================================
 # Main preprocessing
 # ============================================================
+from scipy.signal import butter, sosfiltfilt, resample_poly
+
+def design_butter_bandpass(fs, HP, LP, order=4):
+    return butter(order, [HP, LP], btype="bandpass", fs=fs, output="sos")
+
+
 def PreprocessAudioFiles(cfg, dataset):
     """
     Saves multiband envelopes to .npz.
@@ -149,8 +155,10 @@ def extract_envelope_das2019(
     fs_env = fs_intermediate_env
 
     # 6) Band-pass filter subband envelopes
-    b_bp, a_bp = construct_bpfilter_equiripple(fs_env, hp_cutoff, lp_cutoff)
-    env = filtfilt(b_bp, a_bp, env, axis=0)
+    #b_bp, a_bp = construct_bpfilter_equiripple(fs_env, hp_cutoff, lp_cutoff)
+    #env = filtfilt(b_bp, a_bp, env, axis=0)
+    sos = design_butter_bandpass(fs_env, hp_cutoff, lp_cutoff, order=4)
+    env = sosfiltfilt(sos, env, axis=0)
 
     # 7) Downsample to target fs
     if fs_env != target_fs:

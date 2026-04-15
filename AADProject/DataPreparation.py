@@ -50,7 +50,7 @@ def Preprocess_Data():
                 subject = loader.load()
 
                 for trial in subject.trials:
-                    eeg, fs = EEGPreprocessing.preprocess_trial(trial, cfg)
+                    eeg, fs = EEGPreprocessing.preprocess_trial(trial, cfg, subject_id=subject_id, dataset=dataset)
                     trial.eeg_PP = eeg
                     trial.fs_eeg = fs
                     trial.metadata["preprocessed"] = True

@@ -39,9 +39,7 @@ mkdir -p "$RUN_DIR"
 cd "$CODE_DIR"
 
 CONFIG_COPY="$RUN_DIR/config_used.yaml"
-if [ ! -f "$CONFIG_COPY" ]; then
-    cp "$CODE_DIR/config.yaml" "$CONFIG_COPY"
-fi
+cp -n "$CODE_DIR/config.yaml" "$CONFIG_COPY"
 export AAD_CONFIG="$CONFIG_COPY"
 
 SUBJECT=$(python - <<'PY'

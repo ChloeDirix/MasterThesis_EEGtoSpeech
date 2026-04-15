@@ -1,186 +1,164 @@
+import os
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
+
 from matplotlib import pyplot as plt
-from scipy.signal import filtfilt, remez, freqz, resample_poly
+from scipy.signal import remez, resample_poly, butter, sosfiltfilt
 
 
+def get_plot_dir(cfg, subject_id=None, dataset=None, trial_index=None):
+    base_dir = cfg["preprocessing"]["plotting"].get("save_dir", "debug_plots")
+
+    parts = [base_dir]
+    if subject_id is not None:
+        parts.append(str(subject_id))
+    if dataset is not None:
+        parts.append(str(dataset))
+    if trial_index is not None:
+        parts.append(f"trial_{int(trial_index):03d}")
+
+    full_dir = os.path.join(*parts)
+    os.makedirs(full_dir, exist_ok=True)
+    return full_dir
 
 
-# --------------------------
-# Filter functions
-# --------------------------
+def save_or_close(fig, out_path):
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    print(f"Saved plot: {out_path}")
+    plt.close(fig)
+
 
 def rereference(eeg, method="Cz"):
-
     if method.lower() == "cz":
         CZ_INDEX = 47
         ref = eeg[:, [CZ_INDEX]]
-        eeg_reref = eeg - ref
-        return eeg_reref
+        return eeg - ref
 
     elif method.lower() == "mean":
-        ref = np.mean(eeg, axis=1, keepdims=True)   # shape (samples, 1)
-        eeg_reref = eeg - ref
-        return eeg_reref
-
-    # ---------- remove zero-variance channels --
-    #eeg = eeg[:, np.std(eeg, axis=0) > 0]
+        ref = np.mean(eeg, axis=1, keepdims=True)
+        return eeg - ref
 
     return eeg
 
 
-
-
 def design_equiripple_bandpass(fs, HP, LP):
-    Fst1 = HP - 0.45  # 0.55 Hz
-    Fp1 = HP + 0.45  # 1.45 Hz
-    Fp2 = LP - 0.45  # 8.55 Hz
-    Fst2 = LP + 0.45  # 9.45 Hz
-    
-    bands = [
-        0, Fst1,
-        Fp1, Fp2,
-        Fst2, fs / 2
-    ]
+    Fst1 = HP - 0.45
+    Fp1 = HP + 0.45
+    Fp2 = LP - 0.45
+    Fst2 = LP + 0.45
 
-    # Desired gain in each band:
-    #   0 → stopband
-    #   1 → passband
+    bands = [0, Fst1, Fp1, Fp2, Fst2, fs / 2]
     desired = [0, 1, 0]
-
-    # MATLAB filter lengths are usually ~500 taps
     numtaps = 513
-
-    b = remez(
-        numtaps,
-        bands,
-        desired,
-        fs=fs
-    )
-    return b
+    return remez(numtaps, bands, desired, fs=fs)
 
 
+def design_butter_bandpass(fs, HP, LP, order=4):
+    return butter(order, [HP, LP], btype="bandpass", fs=fs, output="sos")
 
-# --------------------------
-# EEG preprocessing
-# --------------------------
 
-def preprocess_trial(trial, cfg):
+def preprocess_trial(trial, cfg, subject_id=None, dataset=None):
+    eeg_raw = np.asarray(trial.eeg_raw)
+    eeg = eeg_raw.copy()
 
-    eeg = trial.eeg_raw
-    fs = trial.fs_eeg
+    fs_raw = trial.fs_eeg
+    fs = fs_raw
     target_fs = cfg["preprocessing"]["target_fs"]
 
-    band = cfg["preprocessing"]["band"]
-    HP, LP = band
+    HP, LP = cfg["preprocessing"]["band"]
     plot_steps = cfg["preprocessing"]["plotting"]["show_preprocessing_steps"]
     plot_seconds = cfg["preprocessing"]["plotting"]["seconds"]
 
-    # For plotting
+    trial_index = int(trial.index)
+
     if plot_steps:
-        nplot = min(int(plot_seconds * fs), eeg.shape[0])
-        t = np.arange(nplot) / fs
+        plot_dir = get_plot_dir(
+            cfg,
+            subject_id=subject_id,
+            dataset=dataset,
+            trial_index=trial_index,
+        )
+
         ch = 0
-        fig, axs = plt.subplots(4, 1, figsize=(10, 10), sharex=False)
-        fig.suptitle(f"EEG Preprocessing Pipeline — Trial {trial.index}", fontsize=14)
-        axs[0].plot(t, eeg[:nplot, ch])
+        nplot_raw = min(int(plot_seconds * fs_raw), eeg_raw.shape[0])
+        t_raw = np.arange(nplot_raw) / fs_raw
+
+        eeg_reref = rereference(eeg_raw, cfg["preprocessing"]["rereference_method"])
+
+        sos = design_butter_bandpass(fs_raw, HP, LP, order=4)
+        eeg_filt = sosfiltfilt(sos, eeg_reref, axis=0)
+
+        if int(fs_raw) != target_fs:
+            eeg_resamp = resample_poly(eeg_filt, target_fs, fs_raw, axis=0)
+            fs_resamp = target_fs
+        else:
+            eeg_resamp = eeg_filt
+            fs_resamp = fs_raw
+
+        nplot_reref = min(int(plot_seconds * fs_raw), eeg_reref.shape[0])
+        t_reref = np.arange(nplot_reref) / fs_raw
+
+        nplot_filt = min(int(plot_seconds * fs_raw), eeg_filt.shape[0])
+        t_filt = np.arange(nplot_filt) / fs_raw
+
+        nplot_resamp = min(int(plot_seconds * fs_resamp), eeg_resamp.shape[0])
+        t_resamp = np.arange(nplot_resamp) / fs_resamp
+
+        fig, axs = plt.subplots(4, 1, figsize=(11, 10), sharex=False)
+        fig.suptitle(
+            f"EEG preprocessing | subj={subject_id} | ds={dataset} | trial={trial_index} | ch={ch} | band={HP}-{LP} Hz",
+            fontsize=13,
+        )
+
+        axs[0].plot(t_raw, eeg_raw[:nplot_raw, ch])
         axs[0].set_title("Raw EEG")
 
-    # 1️⃣ Re-reference
-    eeg = rereference(eeg, cfg["preprocessing"]["rereference_method"])
-    if plot_steps:
-        axs[1].plot(t, eeg[:nplot, ch])
-        axs[1].set_title("After rereferencing")
+        axs[1].plot(t_reref, eeg_reref[:nplot_reref, ch])
+        axs[1].set_title(f"After rereference ({cfg['preprocessing']['rereference_method']})")
 
-    # 2️⃣ band-pass filter
-    b = design_equiripple_bandpass(fs,HP,LP )
-    #plot_fir_filter_properties(b, fs)
-    eeg = filtfilt(b, [1], eeg, axis=0)
-    if plot_steps:
-        axs[2].plot(t, eeg[:nplot, ch])
-        axs[2].set_title(f"After high-pass ({LP} Hz)")
+        axs[2].plot(t_filt, eeg_filt[:nplot_filt, ch])
+        axs[2].set_title(f"After band-pass ({HP}-{LP} Hz)")
 
+        axs[3].plot(t_resamp, eeg_resamp[:nplot_resamp, ch])
+        axs[3].set_title(f"After resampling ({fs_resamp} Hz)")
 
-    # 4️⃣ Resample
-    if int(fs) != target_fs:
-        eeg = resample_poly(eeg, target_fs, fs, axis=0)
-        fs = target_fs
-        # factor = int(round(fs / target_fs))
-        # eeg = eeg[::factor]
-        # fs = target_fs
+        for ax in axs:
+            ax.grid(True, alpha=0.3)
 
-        if plot_steps:
-            nplot = min(int(plot_seconds * fs), eeg.shape[0])
-            t = np.arange(nplot) / fs
-            axs[3].plot(t, eeg[:nplot, ch])
-            axs[3].set_title(f"After resampling ({fs} Hz)")
+        fig_path = os.path.join(
+            plot_dir,
+            f"preproc_subj-{subject_id}_ds-{dataset}_trial-{trial_index:03d}_ch-{ch}.png"
+        )
+        save_or_close(fig, fig_path)
 
-    elif plot_steps:
-        axs[3].plot(t, eeg[:nplot, ch])
-        axs[3].set_title("No resampling needed")
+        # Also save a compact comparison of just filtered vs resampled
+        fig2, ax2 = plt.subplots(figsize=(11, 4))
+        ax2.plot(t_filt, eeg_filt[:nplot_filt, ch], label="filtered")
+        ax2.plot(t_resamp, eeg_resamp[:nplot_resamp, ch], label="resampled", alpha=0.8)
+        ax2.set_title(
+            f"Filtered vs resampled | subj={subject_id} | ds={dataset} | trial={trial_index} | ch={ch}"
+        )
+        ax2.grid(True, alpha=0.3)
+        ax2.legend()
 
-    if plot_steps:
-        plt.show()
+        fig2_path = os.path.join(
+            plot_dir,
+            f"compare_filtered_resampled_subj-{subject_id}_ds-{dataset}_trial-{trial_index:03d}_ch-{ch}.png"
+        )
+        save_or_close(fig2, fig2_path)
 
- 
+        # Use the precomputed signal so the processing path matches the plot
+        eeg = eeg_resamp
+        fs = fs_resamp
+
+    else:
+        eeg = rereference(eeg, cfg["preprocessing"]["rereference_method"])
+        sos = design_butter_bandpass(fs, HP, LP, order=4)
+        eeg = sosfiltfilt(sos, eeg, axis=0)
+
+        if int(fs) != target_fs:
+            eeg = resample_poly(eeg, target_fs, fs, axis=0)
+            fs = target_fs
 
     return eeg, fs
-
-
-
-def plot_fir_filter_properties(b, fs, title="Bandpass FIR Filter"):
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from scipy.signal import freqz
-
-    # Frequency response
-    w, h = freqz(b, worN=4096)
-    freqs = w * fs / (2 * np.pi)
-
-    zeros = np.roots(b)
-    poles = np.array([0])
-
-    fig = plt.figure(figsize=(14, 10))
-    fig.suptitle(title, fontsize=16)
-
-    # Magnitude
-    ax1 = plt.subplot(2, 2, 1)
-    ax1.plot(freqs, 20 * np.log10(np.abs(h) + 1e-12))
-    ax1.set_title("Magnitude Response (dB)")
-    ax1.set_xlabel("Frequency (Hz)")
-    ax1.set_ylabel("Magnitude (dB)")
-    ax1.grid(True)
-    ax1.set_xlim(0, fs / 4)
-
-    # Phase
-    ax2 = plt.subplot(2, 2, 2)
-    ax2.plot(freqs, np.unwrap(np.angle(h)))
-    ax2.set_title("Phase Response")
-    ax2.set_xlabel("Frequency (Hz)")
-    ax2.set_ylabel("Phase (radians)")
-    ax2.grid(True)
-    ax2.set_xlim(0, fs / 2)
-
-    # Impulse Response (fixed)
-    ax3 = plt.subplot(2, 2, 3)
-    markerline, stemlines, baseline = ax3.stem(b, basefmt=" ")
-    plt.setp(stemlines, 'linewidth', 1)
-    plt.setp(markerline, 'marker', '.')
-    ax3.set_title("Impulse Response")
-    ax3.set_xlabel("Samples")
-    ax3.set_ylabel("Amplitude")
-
-    # Pole-Zero plot
-    ax4 = plt.subplot(2, 2, 4)
-    unit_circle = np.exp(1j * np.linspace(0, 2*np.pi, 400))
-    ax4.plot(np.real(unit_circle), np.imag(unit_circle), 'k--', label="Unit circle")
-    ax4.scatter(np.real(zeros), np.imag(zeros), color='blue', label="Zeros")
-    ax4.scatter(np.real(poles), np.imag(poles), color='red', marker='x', s=80, label="Pole")
-    ax4.set_aspect("equal", "box")
-    ax4.set_title("Pole-Zero Plot")
-    ax4.set_xlabel("Real")
-    ax4.set_ylabel("Imag")
-    ax4.grid(True)
-    ax4.legend()
-
-    plt.tight_layout()
-    plt.show()

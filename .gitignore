@@ -406,3 +406,9 @@ AADProject/Results_Lin
 AADProject/Results_DL
 AADProject/lightning_logs
 AADProject/config.yaml
+AADProject/debug_plots
+AADProject/debug_plots_coarse
+AADProject/DLModel/__pycache__/LightningModule.cpython-310.pyc
+AADProject/DLModel/__pycache__/plot_checks.cpython-310.pyc
+AADProject/DLModel/models/__pycache__/Type2_model.cpython-310.pyc
+AADProject/DLModel/models/__pycache__/Type3_model.cpython-310.pyc

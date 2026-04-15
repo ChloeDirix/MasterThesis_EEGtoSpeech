@@ -37,7 +37,6 @@ class Standardizer:
     def fit(self, X):
         self.mu = np.mean(X, axis=0, keepdims=True)
         self.sigma = np.std(X, axis=0, keepdims=True)
-        self.sigma[self.sigma < 1e-8] = 1.0
         return self
 
     def partial_fit(self, X):
@@ -86,7 +85,6 @@ def zscore_trial(X):
 
     mu = np.mean(X, axis=0, keepdims=True)
     sigma = np.std(X, axis=0, keepdims=True)
-    sigma[sigma < 1e-8] = 1.0
 
     Xz = (X - mu) / sigma
     return Xz[:, 0] if squeeze_back else Xz

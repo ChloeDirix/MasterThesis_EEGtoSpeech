@@ -8,7 +8,7 @@ Datasets:
   DAS: True
 
 #preprocessing?
-Do_envelope_extraction: True
+Do_envelope_extraction: False
 Do_preprocessing: True
 
 # ============================================================
@@ -16,7 +16,7 @@ Do_preprocessing: True
 # ============================================================
 
 data: 
-  input: fine          # fine (64 Hz [1-28 Hz]  or coarse (32 Hz [1-9 Hz])
+  input: coarse                  # fine (64 Hz [1-28 Hz]  or coarse (32 Hz [1-9 Hz])
   norm_mode:  per_trial        #per_trial, global or none or per_subject or "per_subject_train_global_val" "global_per_dataset"
 
 # ============================================================
@@ -53,13 +53,13 @@ splits:
 # 3. Preprocessing settings
 # ============================================================
 preprocessing:
-  target_fs: 64   #Hz -- min 2 bandwidth
-  band: [1, 28]    #Hz
+  target_fs: 32   #Hz -- min 2 bandwidth
+  band: [1, 9]    #Hz
   rereference_method: "mean"
   plotting:
     enable: false
     seconds: 20
-    show_preprocessing_steps: False
+    show_preprocessing_steps: True
   target_n_channels: 64
 
 
@@ -82,7 +82,7 @@ backward_model:
 # DLModel Parameters -----------------------------------------------
 DeepLearning:
   modelType:
-    name: "Type4"   # Type 2,3,4
+    name: "Type3"   # Type 2,3,4
 
   data_windows:
     data:
@@ -109,8 +109,8 @@ DeepLearning:
   train:
     batch_size: 16            #higher: better training stability, lower: less memory problems
     num_epochs: 10            
-    learning_rate: 1e-4       #[5e-5,1e-4,2e-4,3e-4]: do sweep
-    weight_decay: 1e-3        # higher: less overfitting, lower:less underfitting
+    learning_rate: 3e-4       #[5e-5,1e-4,2e-4,3e-4]: do sweep
+    weight_decay: 2e-3        # higher: less overfitting, lower:less underfitting
     patience: 60
     sampler_mode: "dataset"
     num_workers: 4
@@ -118,7 +118,7 @@ DeepLearning:
     
   model:
     eeg_encoder:
-      d_model: 256          # lower:underfit, higher:overfit
+      d_model: 128          # lower:underfit, higher:overfit
       n_heads: 8            # Rule of thumb: d_model % n_heads == 0
       n_layers: 1           # higher: more overfit, lower:more underfit
       ff_mult: 4
