@@ -1,10 +1,12 @@
 #!/bin/bash -l
 #SBATCH --job-name=DL
-#SBATCH --clusters=genius
-#SBATCH --account=lp_eegsigpro
+#SBATCH --clusters=wice
+#SBATCH --account=lp_edu_large_omics
 #SBATCH --nodes=1
-#SBATCH --partition=gpu_v100
-#SBATCH --gpus-per-node=1
+#SBATCH --partition=batch
+#SBATCH --exclude=s28c11n4
+#SBATCH --exclude=s28c11n3
+#SBATCH --cpus-per-task=8
 #SBATCH --mem=30G
 #SBATCH --time=01:00:00
 #SBATCH --array=15-18
@@ -14,6 +16,7 @@
 set -euo pipefail
 
 #sSBATCH --cpus-per-task=1
+#sSBATCH --gpus-per-node=1
 
 
 # ---------------- CONDA ----------------
