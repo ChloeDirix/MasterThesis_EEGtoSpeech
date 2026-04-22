@@ -1,0 +1,3 @@
+'''
+EEG encoder family package.
+'''

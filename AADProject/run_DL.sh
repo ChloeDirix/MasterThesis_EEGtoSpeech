@@ -1,12 +1,12 @@
 #!/bin/bash -l
 #SBATCH --job-name=DL
-#SBATCH --clusters=wice
+#SBATCH --clusters=Wice
 #SBATCH --account=lp_edu_large_omics
 #SBATCH --nodes=1
 #SBATCH --partition=batch
+#SBATCH --cpus-per-task=8
 #SBATCH --exclude=s28c11n4
 #SBATCH --exclude=s28c11n3
-#SBATCH --cpus-per-task=8
 #SBATCH --mem=30G
 #SBATCH --time=01:00:00
 #SBATCH --array=15-18
@@ -15,8 +15,10 @@
 
 set -euo pipefail
 
-#sSBATCH --cpus-per-task=1
 #sSBATCH --gpus-per-node=1
+#sSBATCH --cpus-per-task=8
+#sSBATCH --exclude=s28c11n4
+#sSBATCH --exclude=s28c11n3
 
 
 # ---------------- CONDA ----------------
@@ -50,8 +52,10 @@ mkdir -p "$RUN_dir"
 cd "$CODE_DIR"
 
 CONFIG_COPY="$RUN_dir/config_used.yaml"
-[ -f "$CONFIG_COPY" ] || cp "$CODE_DIR/config.yaml" "$CONFIG_COPY"
+cp -n "$CODE_DIR/config.yaml" "$CONFIG_COPY"
 export AAD_CONFIG="$CONFIG_COPY"
+
+
 
 
 echo "============================================================"

@@ -101,7 +101,7 @@ DeepLearning:
 
 
 
-  loss:  #only of Type 3
+  loss:  #only of Type 3+
     name: "logistic_rank"         # or "triplet" or infoNCE
     margin: 0.0             # logistic_rank could also use it
     normalize: True 
@@ -109,7 +109,7 @@ DeepLearning:
   train:
     batch_size: 16            #higher: better training stability, lower: less memory problems
     num_epochs: 10            
-    learning_rate: 1e-4       #[5e-5,1e-4,2e-4,3e-4]: do sweep
+    learning_rate: 3e-4       #[5e-5,1e-4,2e-4,3e-4]: do sweep
     weight_decay: 2e-2        # higher: less overfitting, lower:less underfitting
     patience: 60
     sampler_mode: "dataset"
@@ -128,7 +128,7 @@ DeepLearning:
       max_len: 4000
       
     audio_encoder:
-      mode: linear    #identity, linear, conv
+      mode: conv    #identity, linear, conv, bollens_lstm
       base_dim: 64
       conv_kernel: 15
       lstm_hidden_1: 64
@@ -136,7 +136,7 @@ DeepLearning:
       dropout: 0.1
 
     contrastive:
-      temperature: 0.2     # higher: unstable, lower: stable (controls hardness of the softmax)
+      temperature: 0.4     # higher: unstable, lower: stable (controls hardness of the softmax)
 
   fine_tuning:
     freeze_all_first: false

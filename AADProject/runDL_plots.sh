@@ -22,7 +22,7 @@ source /user/leuven/373/vsc37381/data/anaconda3/bin/activate AADProjectEnv
 CODE_DIR="$VSC_DATA/MasterThesis_EEGtoSpeech/AADProject"
 export PYTHONPATH="$CODE_DIR:${PYTHONPATH:-}"
 
-slurm_id="66451419"
+slurm_id="66519240"
 slurm_id_lin="66438742"
 
 RESULTS_DIR="/lustre1/scratch/373/vsc37381/Results_DL/run_$slurm_id"
